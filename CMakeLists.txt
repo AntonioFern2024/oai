@@ -266,6 +266,18 @@ add_boolean_option(UE_AUTOTEST_TRACE   False "Activate UE autotest specific logs
 add_boolean_option(UE_DEBUG_TRACE      False "Activate UE debug trace" ON)
 add_boolean_option(UE_TIMING_TRACE     False "Activate UE timing trace" ON)
 
+add_boolean_option(ENABLE_TRACY OFF "Enable tracy instrumentation" ON)
+if (ENABLE_TRACY)
+  include(FetchContent)
+  FetchContent_Declare(
+    tracy
+    GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+    GIT_TAG        v0.11.1
+  )
+  FetchContent_MakeAvailable(tracy)
+  add_definitions(-DTRACY_ENABLE)
+endif()
+
 set (OCP_ITTI ${OPENAIR_DIR}/common/utils/ocp_itti)
 add_library(ITTI ${OCP_ITTI}/intertask_interface.cpp)
 target_link_libraries(ITTI PRIVATE asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs)
@@ -632,6 +644,7 @@ if (cap_FOUND)
   target_compile_definitions(UTIL PRIVATE HAVE_LIB_CAP)
 endif()
 target_link_libraries(UTIL PUBLIC ${T_LIB} pthread LOG thread-pool utils)
+target_link_libraries(UTIL PUBLIC instrumentation)
 
 set(SECURITY_SRC
   ${OPENAIR3_DIR}/SECU/secu_defs.c
@@ -701,7 +714,7 @@ set(SCHED_SRC_NR_UE
   ${OPENAIR1_DIR}/SCHED_NR_UE/pucch_uci_ue_nr.c
 )
 add_library(SCHED_NR_UE_LIB ${SCHED_SRC_NR_UE})
-target_link_libraries(SCHED_NR_UE_LIB PRIVATE asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs)
+target_link_libraries(SCHED_NR_UE_LIB PRIVATE asn1_lte_rrc_hdrs asn1_nr_rrc_hdrs instrumentation)
 
 # nFAPI
 #################################
@@ -1142,7 +1155,7 @@ target_link_libraries(PHY_NR_NO_AVX_256 nr_phy_common nr_common)
 target_compile_definitions(PHY_NR_NO_AVX_256 PUBLIC USE_128BIT)
 
 add_library(PHY_NR_UE ${PHY_NR_UE_SRC})
-target_link_libraries(PHY_NR_UE PRIVATE asn1_nr_rrc_hdrs nr_phy_common nr_common)
+target_link_libraries(PHY_NR_UE PRIVATE asn1_nr_rrc_hdrs nr_phy_common nr_common instrumentation)
 
 add_library(PHY_RU ${PHY_SRC_RU})
 target_link_libraries(PHY_RU PRIVATE asn1_lte_rrc_hdrs)
