@@ -2157,16 +2157,16 @@ static pdusession_level_qos_parameter_t *get_qos_characteristics(const int qfi, 
   return NULL;
 }
 
-/* \bref return F1AP QoS characteristics based on Qos flow parameters */
-static f1ap_qos_characteristics_t get_qos_char_from_qos_flow_param(const pdusession_level_qos_parameter_t *qos_param)
+/* \bref return qos characteristics based on Qos flow parameters */
+static qos_characteristics_t get_qos_char_from_qos_flow_param(const pdusession_level_qos_parameter_t *qos_param)
 {
-  f1ap_qos_characteristics_t qos_char = {0};
-  if (qos_param->fiveQI_type == dynamic) {
-    qos_char.qos_type = dynamic;
+  qos_characteristics_t qos_char = {0};
+  if (qos_param->fiveQI_type == dynamic_5qi) {
+    qos_char.qos_type = dynamic_5qi;
     qos_char.dynamic.fiveqi = qos_param->fiveQI;
     qos_char.dynamic.qos_priority_level = qos_param->qos_priority;
   } else {
-    qos_char.qos_type = non_dynamic;
+    qos_char.qos_type = non_dynamic_5qi;
     qos_char.non_dynamic.fiveqi = qos_param->fiveQI;
     qos_char.non_dynamic.qos_priority_level = qos_param->qos_priority;
   }
