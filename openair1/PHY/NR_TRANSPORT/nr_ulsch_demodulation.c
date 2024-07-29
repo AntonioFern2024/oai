@@ -10,6 +10,7 @@
 #include "common/utils/nr/nr_common.h"
 #include <openair1/PHY/TOOLS/phy_scope_interface.h>
 #include "PHY/sse_intrin.h"
+#include "common/utils/LATSEQ/latseq.h"
 
 #define INVALID_VALUE 255
 
@@ -1486,6 +1487,7 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
   //------------------- Channel estimation -------------------
   //----------------------------------------------------------
   start_meas(&gNB->ulsch_channel_estimation_stats);
+  LATSEQ_P("U phy.prachpucch--phy.CHest", "::fm%u.sl%u.hqpid%u.rnti%u.qammod%u.hqround%u", frame, slot, harq_pid, rel15_ul->rnti, rel15_ul->qam_mod_order, gNB->ulsch[ulsch_id].harq_process->round);
   int max_ch = 0;
   uint32_t nvar = 0;
   int end_symbol = rel15_ul->start_symbol_index + rel15_ul->nr_of_symbols;
@@ -1573,6 +1575,7 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
                              rel15_ul->ul_dmrs_symb_pos,
                              rel15_ul->rb_size);
 
+  LATSEQ_P("U phy.CHest--phy.rbscalvl", "::fm%u.sl%u.hqpid%u.nbantrx%u.rnti%u", frame, slot, harq_pid, frame_parms->nb_antennas_rx, rel15_ul->rnti);
   stop_meas(&gNB->ulsch_channel_estimation_stats);
 
   start_meas(&gNB->rx_pusch_init_stats);
@@ -1692,6 +1695,7 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
   if (pusch_vars->log2_maxh < 0)
     pusch_vars->log2_maxh = 0;
 
+  LATSEQ_P("U phy.rbscalvl--phy.symbolproc", "::fm%u.sl%u.hqpid%u.nbantrx%u.rnti%u", frame, slot, harq_pid, frame_parms->nb_antennas_rx, rel15_ul->rnti);
   stop_meas(&gNB->rx_pusch_init_stats);
 
   start_meas(&gNB->rx_pusch_symbol_processing_stats);
@@ -1741,6 +1745,7 @@ int nr_rx_pusch_tp(PHY_VARS_gNB *gNB,
     delNotifiedFIFO_elt(req);
   }
 
+  LATSEQ_P("U phy.symbolproc--phy.CBdec", "::fm%u.sl%u.hqpid%u.rnti%u.nbsymbols%u", frame, slot, harq_pid, rel15_ul->rnti, rel15_ul->nr_of_symbols);
   stop_meas(&gNB->rx_pusch_symbol_processing_stats);
 
   // Copy the data to the scope. This cannot be performed in one call to gNBscopeCopy because the data is not contiguous in the
