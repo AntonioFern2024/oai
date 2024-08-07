@@ -1113,6 +1113,20 @@ static const char *get_reestab_cause(NR_ReestablishmentCause_t c)
   return "UNKNOWN Failure (ASN.1 decoder error?)";
 }
 
+static rrc_gNB_ue_context_t *rrc_gNB_get_ue_context_source_cell(gNB_RRC_INST *rrc_instance_pP, long pci, rnti_t rntiP)
+{
+  rrc_gNB_ue_context_t *ue_context_p;
+  RB_FOREACH(ue_context_p, rrc_nr_ue_tree_s, &rrc_instance_pP->rrc_ue_head) {
+    gNB_RRC_UE_t *ue = &ue_context_p->ue_context;
+    if (!ue->ho_context || !ue->ho_context->source)
+      continue;
+    nr_ho_source_cu_t *source_ctx = ue->ho_context->source;
+    if (source_ctx->old_rnti == rntiP && source_ctx->du->setup_req->cell[0].info.nr_pci == pci)
+      return ue_context_p;
+  }
+  return NULL;
+}
+
 static void rrc_handle_RRCReestablishmentRequest(gNB_RRC_INST *rrc,
                                                  sctp_assoc_t assoc_id,
                                                  const NR_RRCReestablishmentRequest_IEs_t *req,
@@ -1123,7 +1137,12 @@ static void rrc_handle_RRCReestablishmentRequest(gNB_RRC_INST *rrc,
   const long physCellId = req->ue_Identity.physCellId;
   long ngap_cause = NGAP_CAUSE_RADIO_NETWORK_UNSPECIFIED; /* cause in case of NGAP release req */
   rrc_gNB_ue_context_t *ue_context_p = NULL;
-  LOG_I(NR_RRC, "UE %04x physCellId %ld NR_RRCReestablishmentRequest cause %s\n", msg->crnti, physCellId, scause);
+  LOG_I(NR_RRC,
+        "Reestablishment RNTI %04x req C-RNTI %04lx physCellId %ld cause %s\n",
+        msg->crnti,
+        req->ue_Identity.c_RNTI,
+        physCellId,
+        scause);
 
   const nr_rrc_du_container_t *du = get_du_by_assoc_id(rrc, assoc_id);
   if (du == NULL) {
@@ -1158,13 +1177,53 @@ static void rrc_handle_RRCReestablishmentRequest(gNB_RRC_INST *rrc,
   rnti_t old_rnti = req->ue_Identity.c_RNTI;
   ue_context_p = rrc_gNB_get_ue_context_by_rnti(rrc, assoc_id, old_rnti);
   if (ue_context_p == NULL) {
-    LOG_E(NR_RRC, "NR_RRCReestablishmentRequest without UE context, fallback to RRC setup\n");
-    goto fallback_rrc_setup;
+    ue_context_p = rrc_gNB_get_ue_context_source_cell(rrc, physCellId, old_rnti);
+    if (ue_context_p == NULL) {
+      LOG_E(NR_RRC, "NR_RRCReestablishmentRequest without UE context, fallback to RRC setup\n");
+      goto fallback_rrc_setup;
+    }
   }
   gNB_RRC_UE_t *UE = &ue_context_p->ue_context;
 
+  /* should check phys cell ID to identify the correct cell */
   const f1ap_served_cell_info_t *cell_info = &du->setup_req->cell[0].info;
-  if (physCellId != cell_info->nr_pci) {
+  const f1ap_served_cell_info_t *previous_cell_info = get_cell_information_by_phycellId(physCellId);
+
+  nr_ho_source_cu_t *source_ctx = UE->ho_context ? UE->ho_context->source : NULL;
+  DevAssert(!source_ctx || source_ctx->du->setup_req->num_cells_available == 1);
+  nr_ho_target_cu_t *target_ctx = UE->ho_context ? UE->ho_context->target : NULL;
+  DevAssert(!target_ctx || target_ctx->du->setup_req->num_cells_available == 1);
+
+  bool ho_reestab_on_source = source_ctx && previous_cell_info->nr_cellid == source_ctx->du->setup_req->cell[0].info.nr_cellid;
+  bool ho_reestab_on_target = target_ctx && previous_cell_info->nr_cellid == target_ctx->du->setup_req->cell[0].info.nr_cellid;
+
+  AssertFatal(!UE->ho_context || ho_reestab_on_source || ho_reestab_on_target, "impossible/buggy\n");
+
+  LOG_I(NR_RRC,
+        "found corresponding UE ID %d reestab_on_source %d reestab_on_target %d\n",
+        UE->rrc_ue_id,
+        ho_reestab_on_source,
+        ho_reestab_on_target);
+  if (ho_reestab_on_source) {
+    /* the UE came back on the source DU while doing handover, release at
+     * target DU and and update the association to the initial DU one */
+    LOG_W(NR_RRC, "handover for UE %d/RNTI %04x failed, rollback to original cell\n", UE->rrc_ue_id, UE->rnti);
+
+    source_ctx->ho_cancel(rrc, UE);
+
+    /* update to old DU assoc id -- RNTI + secondary DU UE ID further below */
+    f1_ue_data_t ue_data = cu_get_f1_ue_data(UE->rrc_ue_id);
+    ue_data.du_assoc_id = source_ctx->du->assoc_id;
+    cu_remove_f1_ue_data(UE->rrc_ue_id);
+    cu_add_f1_ue_data(UE->rrc_ue_id, &ue_data);
+    nr_rrc_finalize_ho(UE);
+  } else if (ho_reestab_on_target) {
+    /* the UE came back on the target DU while doing handover, release at the
+     * source and consider the handover completed */
+    LOG_A(NR_RRC, "handover for UE %d/RNTI %04x complete!\n", UE->rrc_ue_id, UE->rnti);
+    target_ctx->ho_success(rrc, UE);
+    nr_rrc_finalize_ho(UE);
+  } else if (physCellId != cell_info->nr_pci) {
     /* UE was moving from previous cell so quickly that RRCReestablishment for previous cell was received in this cell */
     LOG_I(NR_RRC,
           "RRC Reestablishment Request from different physCellId (%ld) than current physCellId (%d), fallback to RRC setup\n",
