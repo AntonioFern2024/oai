@@ -40,6 +40,7 @@
 #include "common/utils/nr/nr_common.h"
 #include <openair1/PHY/TOOLS/phy_scope_interface.h>
 #include "openair1/PHY/NR_REFSIG/nr_refsig_common.h"
+#include "executables/nr-uesoftmodem.h"
 
 #include "assertions.h"
 #include "T.h"
@@ -669,6 +670,32 @@ static void nr_pdcch_unscrambling(c16_t *e_rx,
   }
 }
 
+typedef struct {
+  c16_t *pdcch_e_rx;
+  int e_rx_cand_idx;
+  const UE_nr_rxtx_proc_t *proc;
+  fapi_nr_dl_config_dci_dl_pdu_rel15_t *rel15;
+  int j;
+  int k;
+  uint64_t dci_estimation[2];
+  uint32_t crc;
+} polar_para_t;
+
+static void decode_parallel(void *p)
+{
+  polar_para_t *v = (polar_para_t *)p;
+  memset(v->dci_estimation, 0, sizeof(v->dci_estimation));
+  int16_t tmp_e[16 * 108];
+  int L = v->rel15->L[v->j];
+  int dci_length = v->rel15->dci_length_options[v->k];
+  nr_pdcch_unscrambling(&v->pdcch_e_rx[v->e_rx_cand_idx],
+                        v->rel15->coreset.scrambling_rnti,
+                        L * 108,
+                        v->rel15->coreset.pdcch_dmrs_scrambling_id,
+                        tmp_e);
+  v->crc = polar_decoder_int16(tmp_e, v->dci_estimation, 1, NR_POLAR_DCI_MESSAGE_TYPE, dci_length, L);
+}
+
 void nr_dci_decoding_procedure(PHY_VARS_NR_UE *ue,
                                const UE_nr_rxtx_proc_t *proc,
                                c16_t *pdcch_e_rx,
@@ -677,13 +704,14 @@ void nr_dci_decoding_procedure(PHY_VARS_NR_UE *ue,
 {
   int e_rx_cand_idx = 0;
   *dci_ind = (fapi_nr_dci_indication_t){.SFN = proc->frame_rx, .slot = proc->nr_slot_rx};
-
+  int count = 0;
+  notifiedFIFO_t nf;
+  initNotifiedFIFO(&nf);
   for (int j = 0; j < rel15->number_of_candidates; j++) {
-    int CCEind = rel15->CCE[j];
     int L = rel15->L[j];
-
     // Loop over possible DCI lengths
-    
+    // polar_para_t vals[rel15->num_dci_options];
+
     for (int k = 0; k < rel15->num_dci_options; k++) {
       // skip this candidate if we've already found one with the
       // same rnti and size at a different aggregation level
@@ -696,67 +724,60 @@ void nr_dci_decoding_procedure(PHY_VARS_NR_UE *ue,
       }
       if (ind < dci_ind->number_of_dcis)
         continue;
-
-      uint64_t dci_estimation[2] = {0};
-      LOG_D(NR_PHY_DCI,
-            "(%i.%i) Trying DCI candidate %d of %d number of candidates, CCE %d (%d), L %d, length %d, format %d\n",
-            proc->frame_rx,
-            proc->nr_slot_rx,
-            j,
-            rel15->number_of_candidates,
-            CCEind,
-            e_rx_cand_idx,
-            L,
-            dci_length,
-            rel15->dci_format_options[k]);
-
-      int16_t tmp_e[16 * 108];
-      nr_pdcch_unscrambling(&pdcch_e_rx[e_rx_cand_idx],
-                            rel15->coreset.scrambling_rnti,
-                            L * 108,
-                            rel15->coreset.pdcch_dmrs_scrambling_id,
-                            tmp_e);
-
-      const uint32_t crc = polar_decoder_int16(tmp_e, dci_estimation, 1, NR_POLAR_DCI_MESSAGE_TYPE, dci_length, L);
-
-      rnti_t n_rnti = rel15->rnti;
-      if (crc == n_rnti) {
-        LOG_D(NR_PHY_DCI,
-              "(%i.%i) Received dci indication (rnti %x,dci format %d,n_CCE %d,payloadSize %d,payload %llx)\n",
-              proc->frame_rx,
-              proc->nr_slot_rx,
-              n_rnti,
-              rel15->dci_format_options[k],
-              CCEind,
-              dci_length,
-              *(unsigned long long *)dci_estimation);
-        AssertFatal(dci_ind->number_of_dcis < sizeofArray(dci_ind->dci_list), "Fix allocation\n");
-        fapi_nr_dci_indication_pdu_t *dci = dci_ind->dci_list + dci_ind->number_of_dcis;
-        *dci = (fapi_nr_dci_indication_pdu_t){
-            .rnti = n_rnti,
-            .n_CCE = CCEind,
-            .N_CCE = L,
-            .dci_format = rel15->dci_format_options[k],
-            .ss_type = rel15->ss_type_options[k],
-            .coreset_type = rel15->coreset.CoreSetType,
-        };
-        int n_rb, rb_offset;
-        get_coreset_rballoc(rel15->coreset.frequency_domain_resource, &n_rb, &rb_offset);
-        dci->cset_start = rel15->BWPStart + rb_offset;
-        dci->payloadSize = dci_length;
-        memcpy(dci->payloadBits, dci_estimation, (dci_length + 7) / 8);
-        dci_ind->number_of_dcis++;
-        break;    // If DCI is found, no need to check for remaining DCI lengths
-      } else {
-        LOG_D(NR_PHY_DCI,
-              "(%i.%i) Decoded crc %x does not match rnti %x for DCI format %d\n",
-              proc->frame_rx,
-              proc->nr_slot_rx,
-              crc,
-              n_rnti,
-              rel15->dci_format_options[k]);
-      }
+      notifiedFIFO_elt_t *Msg = newNotifiedFIFO_elt(sizeof(polar_para_t), 0, &nf, decode_parallel);
+      polar_para_t *msg = (polar_para_t *)NotifiedFifoData(Msg);
+      *msg = (polar_para_t){.pdcch_e_rx = pdcch_e_rx, .e_rx_cand_idx = e_rx_cand_idx, .proc = proc, .rel15 = rel15, .j = j, .k = k};
+      pushTpool(&(get_nrUE_params()->Tpool), Msg);
+      count++;
     }
     e_rx_cand_idx += 9 * L * 6; // e_rx index for next candidate (L CCEs, 6 REGs per CCE and 9 REs per REG )
+  }
+
+  while (count) {
+    notifiedFIFO_elt_t *res = pullTpool(&nf, &(get_nrUE_params()->Tpool));
+    if (!res)
+      break;
+    count--;
+    polar_para_t *v = (polar_para_t *)NotifiedFifoData(res);
+    rnti_t n_rnti = rel15->rnti;
+    int CCEind = rel15->CCE[v->j];
+    int L = rel15->L[v->j];
+    int dci_length = rel15->dci_length_options[v->k];
+    if (v->crc == n_rnti) {
+      LOG_D(NR_PHY_DCI,
+            "(%i.%i) Received dci indication (rnti %x,dci format %d,n_CCE %d,payloadSize %d,payload %llx)\n",
+            proc->frame_rx,
+            proc->nr_slot_rx,
+            n_rnti,
+            rel15->dci_format_options[v->k],
+            CCEind,
+            dci_length,
+            *(unsigned long long *)v->dci_estimation);
+      AssertFatal(dci_ind->number_of_dcis < sizeofArray(dci_ind->dci_list), "Fix allocation\n");
+      fapi_nr_dci_indication_pdu_t *dci = dci_ind->dci_list + dci_ind->number_of_dcis;
+      *dci = (fapi_nr_dci_indication_pdu_t){
+          .rnti = n_rnti,
+          .n_CCE = CCEind,
+          .N_CCE = L,
+          .dci_format = rel15->dci_format_options[v->k],
+          .ss_type = rel15->ss_type_options[v->k],
+          .coreset_type = rel15->coreset.CoreSetType,
+      };
+      int n_rb, rb_offset;
+      get_coreset_rballoc(rel15->coreset.frequency_domain_resource, &n_rb, &rb_offset);
+      dci->cset_start = rel15->BWPStart + rb_offset;
+      dci->payloadSize = dci_length;
+      memcpy(dci->payloadBits, v->dci_estimation, (dci_length + 7) / 8);
+      dci_ind->number_of_dcis++;
+    } else {
+      LOG_D(NR_PHY_DCI,
+            "(%i.%i) Decoded crc %x does not match rnti %x for DCI format %d\n",
+            proc->frame_rx,
+            proc->nr_slot_rx,
+            v->crc,
+            n_rnti,
+            rel15->dci_format_options[v->k]);
+    }
+    free(res);
   }
 }
