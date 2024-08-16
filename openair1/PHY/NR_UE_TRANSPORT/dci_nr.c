@@ -783,5 +783,5 @@ void nr_dci_decoding_procedure(PHY_VARS_NR_UE *ue,
   }
   uint64_t b = rdtsc_oai();
   if (b - a > 3000 * 100)
-    printf("total dci %lld\n", (b - a) / 3000);
+    printf("total dci %ld\n", (b - a) / 3000);
 }
