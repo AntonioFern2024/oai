@@ -702,6 +702,7 @@ void nr_dci_decoding_procedure(PHY_VARS_NR_UE *ue,
                                fapi_nr_dci_indication_t *dci_ind,
                                fapi_nr_dl_config_dci_dl_pdu_rel15_t *rel15)
 {
+  uint64_t a = rdtsc_oai();
   int e_rx_cand_idx = 0;
   *dci_ind = (fapi_nr_dci_indication_t){.SFN = proc->frame_rx, .slot = proc->nr_slot_rx};
   int count = 0;
@@ -780,4 +781,7 @@ void nr_dci_decoding_procedure(PHY_VARS_NR_UE *ue,
     }
     free(res);
   }
+  uint64_t b = rdtsc_oai();
+  if (b - a > 3000 * 100)
+    printf("total dci %lld\n", (b - a) / 3000);
 }
