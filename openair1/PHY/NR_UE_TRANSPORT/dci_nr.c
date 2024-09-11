@@ -714,7 +714,7 @@ void nr_dci_decoding_procedure(PHY_VARS_NR_UE *ue,
     }
     e_rx_cand_idx += 9 * L * 6; // e_rx index for next candidate (L CCEs, 6 REGs per CCE and 9 REs per REG )
   }
-
+  int nb=count;
   while (count) {
     notifiedFIFO_elt_t *res = pullTpool(&nf, &(get_nrUE_params()->Tpool));
     if (!res)
@@ -764,5 +764,5 @@ void nr_dci_decoding_procedure(PHY_VARS_NR_UE *ue,
   }
   uint64_t b = rdtsc_oai();
   if (b - a > 3000 * 100)
-    printf("total dci %ld\n", (b - a) / 3000);
+    printf("total dci %ld for %d decodes\n", (b - a) / 3000, nb);
 }
