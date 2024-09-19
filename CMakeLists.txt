@@ -1438,6 +1438,7 @@ add_library(L2_NR
   ${GNB_APP_SRC}
   )
 target_link_libraries(L2_NR PRIVATE ds alg)
+target_link_libraries(L2_NR PRIVATE e1ap_lib)
 
 add_library(e1_if
   ${NR_RRC_DIR}/cucp_cuup_direct.c
