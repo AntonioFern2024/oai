@@ -71,18 +71,4 @@ typedef struct {
   uint8_t message_type;
 } sm_msg_header_t;
 
-typedef struct {
-  uint8_t ex_protocol_discriminator;
-  uint8_t pdu_session_id;
-  uint8_t PTI;
-  uint8_t message_type;
-} fgs_sm_nas_msg_header_t;
-
-typedef struct {
-  mm_msg_header_t plain_nas_msg_header;
-  uint8_t payload_container_type;
-  uint16_t payload_container_length;
-  fgs_sm_nas_msg_header_t sm_nas_msg_header;
-} dl_nas_transport_t;
-
 #endif // NAS_FGS_COMMON_H

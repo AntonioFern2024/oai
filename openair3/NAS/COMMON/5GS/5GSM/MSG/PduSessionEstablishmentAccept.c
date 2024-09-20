@@ -84,6 +84,10 @@ static const char *get_iei_description(int iei)
   return "Unknown IEI";
 }
 
+/**
+ * @brief PDU session establishment accept (8.3.2 of 3GPP TS 24.501)
+ *        network to UE
+ */
 void capture_pdu_session_establishment_accept_msg(uint8_t *buffer, uint32_t msg_length)
 {
   fgs_nas_message_security_header_t sec_nas_hdr;
