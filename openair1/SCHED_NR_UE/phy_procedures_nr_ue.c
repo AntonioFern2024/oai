@@ -287,11 +287,15 @@ void phy_procedures_nrUE_TX(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc, n
 
   start_meas_nr_ue_phy(ue, PHY_PROC_TX);
 
-  const int harq_pid = phy_data->ulsch.pusch_pdu.pusch_data.harq_process_id;
-  if (ue->ul_harq_processes[harq_pid].ULstatus == ACTIVE) {
-    start_meas_nr_ue_phy(ue, PUSCH_PROC_STATS);
-    nr_ue_ulsch_procedures(ue, harq_pid, frame_tx, slot_tx, gNB_id, phy_data, (c16_t **)&txdataF);
-    stop_meas_nr_ue_phy(ue, PUSCH_PROC_STATS);
+  if (ue->nrLDPC_coding_interface_flag) {
+    nr_ue_ulsch_procedures_slot(ue, frame_tx, slot_tx, phy_data, (c16_t **)&txdataF);
+  } else {
+    int harq_pid = phy_data->ulsch.pusch_pdu.pusch_data.harq_process_id;
+    if (ue->ul_harq_processes[harq_pid].ULstatus == ACTIVE) {
+        start_meas_nr_ue_phy(ue, PUSCH_PROC_STATS);
+        nr_ue_ulsch_procedures(ue, harq_pid, frame_tx, slot_tx, gNB_id, phy_data, (c16_t **)&txdataF);
+        stop_meas_nr_ue_phy(ue, PUSCH_PROC_STATS);
+    }
   }
 
   ue_srs_procedures_nr(ue, proc, (c16_t **)&txdataF);
@@ -773,7 +777,7 @@ static bool nr_ue_dlsch_procedures_slot(PHY_VARS_NR_UE *ue,
   uint8_t *p_b[2] = {p_b_0, p_b_1};
 
   start_meas(&ue->dlsch_decoding_stats);
-  ret = nr_ue_dlsch_decoding_slot(ue, proc, dlsch, llr, p_b, G, nb_dlsch, DLSCH_ids);
+  ret = nr_dlsch_decoding_slot(ue, proc, dlsch, llr, p_b, G, nb_dlsch, DLSCH_ids);
   stop_meas(&ue->dlsch_decoding_stats);
 
   if (ret < ue->max_ldpc_iterations + 1) dec = true;
