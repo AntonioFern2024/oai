@@ -19,7 +19,7 @@
  *      contact@openairinterface.org
  */
 
-/*! \file PHY/CODING/nrLDPC_coding_interface_demo_decoder.c
+/*! \file PHY/CODING/nrLDPC_coding/nrLDPC_coding_segment/nrLDPC_coding_segment_decoder.c
 * \brief Top-level routines for decoding  LDPC transport channels
 * \author Ahmed Hussein
 * \date 2019
@@ -36,7 +36,7 @@
 #include "PHY/CODING/coding_extern.h"
 #include "PHY/CODING/coding_defs.h"
 #include "PHY/CODING/lte_interleaver_inline.h"
-#include "PHY/CODING/nrLDPC_coding_interface.h"
+#include "PHY/CODING/nrLDPC_coding/nrLDPC_coding_interface.h"
 #include "PHY/CODING/nrLDPC_extern.h"
 #include "PHY/NR_TRANSPORT/nr_transport_common_proto.h"
 #include "PHY/NR_TRANSPORT/nr_transport_proto.h"
@@ -115,7 +115,7 @@ typedef struct nrLDPC_decoding_parameters_s{
 } nrLDPC_decoding_parameters_t;
 
 // Global var to limit the rework of the dirty legacy code
-ldpc_interface_t ldpc_interface_demo;
+ldpc_interface_t ldpc_interface_segment;
 
 static void nr_process_decode_segment(void *arg)
 {
@@ -168,7 +168,7 @@ static void nr_process_decode_segment(void *arg)
                                Kr - rdata->F - 2 * (p_decoderParms->Z))
       == -1) {
 
-    LOG_E(PHY, "nrLDPC_coding_interface_demo_decoder.c: Problem in rate_matching\n");
+    LOG_E(PHY, "nrLDPC_coding_segment_decoder.c: Problem in rate_matching\n");
     return;
   }
 
@@ -205,7 +205,7 @@ static void nr_process_decode_segment(void *arg)
 
   ////////////////////////////////// pl =====> llrProcBuf //////////////////////////////////
   int decodeIterations =
-      ldpc_interface_demo.LDPCdecoder(p_decoderParms, 0, 0, 0, l, llrProcBuf, p_procTime, rdata->abort_decode);
+      ldpc_interface_segment.LDPCdecoder(p_decoderParms, 0, 0, 0, l, llrProcBuf, p_procTime, rdata->abort_decode);
 
   if (decodeIterations <= p_decoderParms->numMaxIter) {
     memcpy(rdata->c,llrProcBuf,  Kr>>3);
@@ -264,8 +264,8 @@ int32_t nrLDPC_coding_init(void){
   paramdef_t LoaderParams[] = {
     {"segment_shlibversion", NULL, 0, .strptr = &segment_shlibversion, .defstrval = "", TYPE_STRING, 0, NULL}
   };
-  config_get(config_get_if(), LoaderParams, sizeofArray(LoaderParams), "nrLDPC_coding_demo");
-  load_LDPClib(segment_shlibversion, &ldpc_interface_demo);
+  config_get(config_get_if(), LoaderParams, sizeofArray(LoaderParams), "nrLDPC_coding_segment");
+  load_LDPClib(segment_shlibversion, &ldpc_interface_segment);
 
   return 0;
 
@@ -273,7 +273,7 @@ int32_t nrLDPC_coding_init(void){
 
 int32_t nrLDPC_coding_shutdown(void){
 
-  free_LDPClib(&ldpc_interface_demo);
+  free_LDPClib(&ldpc_interface_segment);
 
   return 0;
 

@@ -67,7 +67,7 @@ Shared object file *libldpc_xdma.so* is created during the compilation. This obj
 
 The simulated test uses the option `--loader.ldpc.shlibversion _xdma` to select the XDMA version for loading into the LDPC interface. Additionally, the option `--nrLDPC_coding_xdma.num_threads_prepare` is used to specify the number of threads for preparing data before the LDPC processing, specifically for the deinterleaving and rate matching parts.
 
-Another way to activate the feature is to add the `slot_xdma.conf` file with the following content:
+Another way to activate the feature is to add the `xdma.conf` file with the following content:
 
 ```
 nrLDPC_coding_xdma : {
@@ -82,7 +82,7 @@ loader : {
 
 ```
 
-and use option `-O slot_xdma.conf`. 
+and use option `-O xdma.conf`. 
 
 ## nr_ulsim test
 
@@ -96,7 +96,7 @@ sudo ./nr_ulsim -n100 -m28 -r273 -R273 -s22 -I10 -C8 -P --loader.ldpc.shlibversi
 or
 
 ```
-sudo ./nr_ulsim -n100 -m28 -r273 -R273 -s22 -I10 -C8 -P -O slot_xdma.conf
+sudo ./nr_ulsim -n100 -m28 -r273 -R273 -s22 -I10 -C8 -P -O xdma.conf
 ```
 
 # Run

@@ -43,7 +43,7 @@
 
 //#undef FRAME_LENGTH_COMPLEX_SAMPLES //there are two conflicting definitions, so we better make sure we don't use it at all
 #include "openair1/PHY/MODULATION/nr_modulation.h"
-#include "PHY/CODING/nrLDPC_coding_interface.h"
+#include "PHY/CODING/nrLDPC_coding/nrLDPC_coding_interface.h"
 #include "PHY/phy_vars_nr_ue.h"
 #include "PHY/NR_UE_TRANSPORT/nr_transport_proto_ue.h"
 #include "PHY/NR_TRANSPORT/nr_dlsch.h"
@@ -429,15 +429,10 @@ int main(int argc, char **argv)
   int ret_loader = load_nrLDPC_coding_interface(NULL, &nrLDPC_coding_interface);
   if (ret_loader >= 0) {
     nrLDPC_coding_interface_flag = 1;
-    if (nrUE_params.ldpc_offload_flag)
-      load_LDPClib("_t2", &ldpc_interface_offload);
-    else
-      load_LDPClib("", &ldpc_interface);
   } else {
+    load_LDPClib(NULL, &ldpc_interface);
     if (nrUE_params.ldpc_offload_flag)
       load_LDPClib("_t2", &ldpc_interface_offload);
-    else
-      load_LDPClib(NULL, &ldpc_interface);
   }
 
   if (ouput_vcd) {

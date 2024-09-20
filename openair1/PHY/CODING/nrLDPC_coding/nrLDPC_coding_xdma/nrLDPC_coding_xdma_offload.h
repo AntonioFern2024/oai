@@ -1,4 +1,4 @@
-/*! \file PHY/CODING/nrLDPC_decoder_offload_xdma/nrLDPC_decoder_offload_xdma.h
+/*! \file PHY/CODING/nrLDPC_coding/nrLDPC_coding_xdma/nrLDPC_coding_xdma_offload.h
  * \briefFPGA accelerator integrated into OAI (for one and multi code block)
  * \author Sendren Xu, SY Yeh(fdragon), Hongming, Terng-Yin Hsu
  * \date 2022-05-31

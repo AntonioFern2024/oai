@@ -19,7 +19,7 @@
  *      contact@openairinterface.org
  */
 
-/*! \file PHY/NR_TRANSPORT/nr_ulsch_decoding.c
+/*! \file PHY/CODING/nrLDPC_coding/nrLDPC_coding_xdma/nrLDPC_coding_xdma.c
  * \brief Top-level routines for decoding  LDPC (ULSCH) transport channels
  * from 38.212, V15.4.0 2018-12 \author Ahmed Hussein \date 2019 \version 0.1
  * \company Fraunhofer IIS
@@ -34,7 +34,7 @@
 #include "PHY/CODING/coding_defs.h"
 #include "PHY/CODING/coding_extern.h"
 #include "PHY/CODING/lte_interleaver_inline.h"
-#include "PHY/CODING/nrLDPC_decoder/nrLDPC_decoder_offload_xdma.h"
+#include "PHY/CODING/nrLDPC_coding/nrLDPC_coding_xdma/nrLDPC_coding_xdma_offload.h"
 #include "PHY/CODING/nrLDPC_extern.h"
 #include "PHY/NR_TRANSPORT/nr_dlsch.h"
 #include "PHY/NR_TRANSPORT/nr_transport_common_proto.h"
@@ -62,12 +62,10 @@
 #include "nfapi/open-nFAPI/nfapi/public_inc/nfapi_interface.h"
 #include "nfapi/open-nFAPI/nfapi/public_inc/nfapi_nr_interface.h"
 
-#include "nrLDPC_coding_interface.h"
-
-#define DEMO_LDPCLIB_SUFFIX ""
+#include "PHY/CODING/nrLDPC_coding/nrLDPC_coding_interface.h"
 
 // Global var to limit the rework of the dirty legacy code
-ldpc_interface_t ldpc_interface_demo;
+ldpc_interface_t ldpc_interface_segment;
 int num_threads_prepare_max = 0;
 
 /*!
@@ -101,17 +99,21 @@ void nr_ulsch_FPGA_decoding_prepare_blocks(void *args);
 
 int32_t nrLDPC_coding_init(void)
 {
-  paramdef_t LoaderParams[] = {{"num_threads_prepare", NULL, 0, .iptr = &num_threads_prepare_max, .defintval = 0, TYPE_INT, 0, NULL}};
+  char *encoder_shlibversion = NULL;
+  paramdef_t LoaderParams[] = {
+    {"num_threads_prepare", NULL, 0, .iptr = &num_threads_prepare_max, .defintval = 0, TYPE_INT, 0, NULL},
+    {"encoder_shlibversion", NULL, 0, .strptr = &encoder_shlibversion, .defstrval = "", TYPE_STRING, 0, NULL}
+  };
   config_get(config_get_if(), LoaderParams, sizeofArray(LoaderParams), "nrLDPC_coding_xdma");
   AssertFatal(num_threads_prepare_max != 0, "nrLDPC_coding_xdma.num_threads_prepare was not provided");
 
-  load_LDPClib(DEMO_LDPCLIB_SUFFIX, &ldpc_interface_demo);
+  load_LDPClib(encoder_shlibversion, &ldpc_interface_segment);
   return 0;
 }
 
 int32_t nrLDPC_coding_shutdown(void)
 {
-  free_LDPClib(&ldpc_interface_demo);
+  free_LDPClib(&ldpc_interface_segment);
   return 0;
 }
 

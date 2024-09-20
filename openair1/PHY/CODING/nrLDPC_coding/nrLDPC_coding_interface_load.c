@@ -35,7 +35,7 @@
 #include <malloc.h>
 #include "assertions.h"
 #include "common/utils/LOG/log.h"
-#include "PHY/CODING/nrLDPC_coding_interface.h"
+#include "PHY/CODING/nrLDPC_coding/nrLDPC_coding_interface.h"
 #include "PHY/CODING/nrLDPC_extern.h"
 #include "common/config/config_userapi.h"
 #include "common/utils/load_module_shlib.h"

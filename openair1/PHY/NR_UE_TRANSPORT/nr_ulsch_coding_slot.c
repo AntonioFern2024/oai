@@ -28,7 +28,7 @@
 #include "PHY/CODING/coding_extern.h"
 #include "PHY/CODING/lte_interleaver_inline.h"
 #include "PHY/CODING/nrLDPC_extern.h"
-#include "PHY/CODING/nrLDPC_coding_interface.h"
+#include "PHY/CODING/nrLDPC_coding/nrLDPC_coding_interface.h"
 #include "PHY/NR_UE_TRANSPORT/nr_transport_ue.h"
 #include "executables/nr-uesoftmodem.h"
 #include "common/utils/LOG/vcd_signal_dumper.h"

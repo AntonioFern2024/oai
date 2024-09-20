@@ -35,6 +35,7 @@
 #include "PHY/defs_nr_common.h"
 #include "PHY/defs_nr_UE.h"
 #include "PHY/types.h"
+#include "PHY/CODING/nrLDPC_coding/nrLDPC_coding_interface.h"
 #include "PHY/INIT/nr_phy_init.h"
 #include "PHY/MODULATION/modulation_eNB.h"
 #include "PHY/MODULATION/modulation_UE.h"

@@ -498,12 +498,10 @@ if (ENABLE_LDPC_T2)
   add_library(ldpc_t2 MODULE ${OPENAIR1_DIR}/PHY/CODING/nrLDPC_decoder/nrLDPC_decoder_offload.c)
   set_target_properties(ldpc_t2 PROPERTIES COMPILE_FLAGS "-DALLOW_EXPERIMENTAL_API")
   target_link_libraries(ldpc_t2 ${LIBDPDK_T2_LDFLAGS} ${PMD_T2})
-  set(PHY_LDPC_SLOT_T2_SRC
-    ${OPENAIR1_DIR}/PHY/CODING/nrLDPC_decoder/nrLDPC_coding_t2.c
-    ${OPENAIR1_DIR}/PHY/CODING/nrLDPC_decoder/nrLDPC_decoder.c
-    ${OPENAIR1_DIR}/PHY/CODING/nrLDPC_encoder/ldpc_encoder_optim8segmulti.c
+  set(PHY_NRLDPC_CODING_T2_SRC
+    ${OPENAIR1_DIR}/PHY/CODING/nrLDPC_coding/nrLDPC_coding_t2/nrLDPC_coding_t2.c
   )
-add_library(ldpc_slot_t2 MODULE ${PHY_LDPC_SLOT_T2_SRC})
+add_library(ldpc_slot_t2 MODULE ${PHY_NRLDPC_CODING_T2_SRC})
   set_target_properties(ldpc_slot_t2 PROPERTIES COMPILE_FLAGS "-DALLOW_EXPERIMENTAL_API")
   target_link_libraries(ldpc_slot_t2 PRIVATE ldpc_gen_HEADERS ${LIBDPDK_T2_LDFLAGS} ${PMD_T2})
 endif()
@@ -515,9 +513,9 @@ endif()
 add_boolean_option(ENABLE_LDPC_XDMA OFF "Build support for LDPC Offload to XDMA library" OFF)
 if (ENABLE_LDPC_XDMA)
   set(PHY_NRLDPC_CODING_XDMA_SRC
-  ${OPENAIR1_DIR}/PHY/CODING/nrLDPC_decoder/nrLDPC_decoder_offload_xdma.c
-  ${OPENAIR1_DIR}/PHY/CODING/nrLDPC_coding_interface_xdma.c
-  ${OPENAIR1_DIR}/PHY/CODING/nrLDPC_coding_interface_demo_encoder.c
+  ${OPENAIR1_DIR}/PHY/CODING/nrLDPC_coding/nrLDPC_coding_xdma/nrLDPC_coding_xdma_offload.c
+  ${OPENAIR1_DIR}/PHY/CODING/nrLDPC_coding/nrLDPC_coding_xdma/nrLDPC_coding_xdma.c
+  ${OPENAIR1_DIR}/PHY/CODING/nrLDPC_coding/nrLDPC_coding_segment/nrLDPC_coding_segment_encoder.c
   )
   add_library(ldpc_xdma MODULE ${PHY_NRLDPC_CODING_XDMA_SRC})
 endif()
@@ -860,9 +858,9 @@ add_library(ldpc_cl MODULE ${PHY_LDPC_CL_SRC} )
 target_link_libraries(ldpc_cl OpenCL)
 add_dependencies(ldpc_cl nrLDPC_decoder_kernels_CL)
 
-set(PHY_NRLDPC_CODING_DEMO_SRC
-  ${OPENAIR1_DIR}/PHY/CODING/nrLDPC_coding_interface_demo_decoder.c
-  ${OPENAIR1_DIR}/PHY/CODING/nrLDPC_coding_interface_demo_encoder.c
+set(PHY_NRLDPC_CODING_SEGMENT_SRC
+  ${OPENAIR1_DIR}/PHY/CODING/nrLDPC_coding/nrLDPC_coding_segment/nrLDPC_coding_segment_decoder.c
+  ${OPENAIR1_DIR}/PHY/CODING/nrLDPC_coding/nrLDPC_coding_segment/nrLDPC_coding_segment_encoder.c
 )
 
 set(PHY_NR_CODINGIF
@@ -870,7 +868,7 @@ set(PHY_NR_CODINGIF
 )
 
 set(PHY_NRLDPC_CODINGIF
-  ${OPENAIR1_DIR}/PHY/CODING/nrLDPC_coding_interface_load.c
+  ${OPENAIR1_DIR}/PHY/CODING/nrLDPC_coding/nrLDPC_coding_interface_load.c
 )
 
 ##############################################
@@ -893,7 +891,7 @@ add_library(coding MODULE ${PHY_TURBOSRC} )
 
 add_library(dfts MODULE ${OPENAIR1_DIR}/PHY/TOOLS/oai_dfts.c ${OPENAIR1_DIR}/PHY/TOOLS/oai_dfts_neon.c)
 
-add_library(ldpc_slot_demo MODULE ${PHY_NRLDPC_CODING_DEMO_SRC})
+add_library(ldpc_slot_segment MODULE ${PHY_NRLDPC_CODING_SEGMENT_SRC})
 
 set(PHY_SRC_COMMON
   ${OPENAIR1_DIR}/PHY/LTE_TRANSPORT/dci_tools_common.c
@@ -2077,7 +2075,7 @@ if(E2_AGENT)
 endif()
 
 
-add_dependencies(nr-softmodem ldpc_orig ldpc_optim ldpc_optim8seg ldpc ldpc_slot_demo)
+add_dependencies(nr-softmodem ldpc_orig ldpc_optim ldpc_optim8seg ldpc ldpc_slot_segment)
 
 if (ENABLE_LDPC_T2)
   add_dependencies(nr-softmodem ldpc_t2 ldpc_slot_t2)
@@ -2138,10 +2136,18 @@ target_link_libraries(nr-uesoftmodem PRIVATE pthread m CONFIG_LIB rt nr_ue_phy_m
 target_link_libraries(nr-uesoftmodem PRIVATE ${T_LIB})
 target_link_libraries(nr-uesoftmodem PRIVATE asn1_nr_rrc_hdrs asn1_lte_rrc_hdrs)
 
-add_dependencies( nr-uesoftmodem ldpc_orig ldpc_optim ldpc_optim8seg ldpc ldpc_slot_demo)
+add_dependencies( nr-uesoftmodem ldpc_orig ldpc_optim ldpc_optim8seg ldpc ldpc_slot_segment)
 if (ENABLE_LDPC_CUDA)
    add_dependencies(nr-uesoftmodem ldpc_cuda)
    add_dependencies(nr-softmodem ldpc_cuda)
+endif()
+
+if (ENABLE_LDPC_T2)
+  add_dependencies(nr-uesoftmodem ldpc_t2 ldpc_slot_t2)
+endif()
+
+if (ENABLE_LDPC_XDMA)
+  add_dependencies(nr-uesoftmodem ldpc_xdma)
 endif()
 
 # force the generation of ASN.1 so that we don't need to wait during the build
@@ -2304,7 +2310,7 @@ endif()
 if (ENABLE_LDPC_XDMA)
   add_dependencies(nr_ulsim ldpc_xdma)
 endif()
-add_dependencies(nr_ulsim ldpc_slot_demo)
+add_dependencies(nr_ulsim ldpc_slot_segment)
 
 target_link_libraries(nr_ulsim PRIVATE
   -Wl,--start-group UTIL SIMU PHY_COMMON PHY_NR_COMMON PHY_NR PHY_NR_UE SCHED_NR_LIB SCHED_NR_UE_LIB MAC_UE_NR MAC_NR_COMMON nr_rrc CONFIG_LIB L2_NR HASHTABLE x2ap SECURITY ngap -lz -Wl,--end-group
@@ -2371,7 +2377,8 @@ if (${T_TRACER})
         PHY_COMMON PHY PHY_UE PHY_NR PHY_NR_COMMON PHY_NR_UE PHY_RU PHY_MEX
         L2 L2_LTE L2_NR L2_LTE_NR L2_UE NR_L2_UE L2_UE_LTE_NR MAC_NR_COMMON MAC_UE_NR ngap
         CN_UTILS GTPV1U SCTP_CLIENT MME_APP LIB_NAS_UE NB_IoT SIMU OPENAIR0_LIB
-        ldpc_orig ldpc_optim ldpc_optim8seg ldpc_t2 ldpc_cl ldpc_cuda ldpc ldpc_slot_demo ldpc_slot_t2 ldpc_xdma dfts config_internals nr_common)
+        ldpc_orig ldpc_optim ldpc_optim8seg ldpc_t2 ldpc_cl ldpc_cuda ldpc ldpc_slot_segment ldpc_slot_t2 ldpc_xdma
+        dfts config_internals nr_common)
     if (TARGET ${i})
       add_dependencies(${i} generate_T)
     endif()

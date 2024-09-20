@@ -33,7 +33,6 @@
 #include "nr_dlsch.h"
 #include "nr_dci.h"
 #include "nr_sch_dmrs.h"
-#include "PHY/CODING/nrLDPC_coding_interface.h"
 #include "PHY/MODULATION/nr_modulation.h"
 #include "PHY/NR_REFSIG/dmrs_nr.h"
 #include "PHY/NR_REFSIG/ptrs_nr.h"

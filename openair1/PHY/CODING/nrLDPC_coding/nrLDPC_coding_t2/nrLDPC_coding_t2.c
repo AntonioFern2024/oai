@@ -2,25 +2,25 @@
  * Copyright(c) 2017 Intel Corporation
  */
 
-/*! \file PHY/CODING/nr_ulsch_decoding_t2.c
+/*! \file PHY/CODING/nrLDPC_coding/nrLDPC_coding_t2/nrLDPC_coding_t2.c
  * \note: based on testbbdev test_bbdev_perf.c functions. Harq buffer offset added.
  * \mbuf and mempool allocated at the init step, LDPC parameters updated from OAI.
  */
 
 #include <stdint.h>
-#include "PHY/CODING/nrLDPC_coding_interface.h"
+#include "PHY/CODING/nrLDPC_coding/nrLDPC_coding_interface.h"
 #include "PHY/sse_intrin.h"
-#include "nrLDPCdecoder_defs.h"
-#include "nrLDPC_types.h"
-#include "nrLDPC_init.h"
-#include "nrLDPC_mPass.h"
-#include "nrLDPC_cnProc.h"
-#include "nrLDPC_bnProc.h"
+#include "PHY/CODING/nrLDPC_decoder/nrLDPCdecoder_defs.h"
+#include "PHY/CODING/nrLDPC_decoder/nrLDPC_types.h"
+#include "PHY/CODING/nrLDPC_decoder/nrLDPC_init.h"
+#include "PHY/CODING/nrLDPC_decoder/nrLDPC_mPass.h"
+#include "PHY/CODING/nrLDPC_decoder/nrLDPC_cnProc.h"
+#include "PHY/CODING/nrLDPC_decoder/nrLDPC_bnProc.h"
 #include <common/utils/LOG/log.h>
 #define NR_LDPC_ENABLE_PARITY_CHECK
 
 #ifdef NR_LDPC_DEBUG_MODE
-#include "nrLDPC_tools/nrLDPC_debug.h"
+#include "PHY/CODING/nrLDPC_decoder/nrLDPC_tools/nrLDPC_debug.h"
 #endif
 
 #include "openair1/PHY/CODING/nrLDPC_extern.h"
@@ -37,7 +37,7 @@
 #include <rte_cycles.h>
 #include <rte_lcore.h>
 #include <rte_pdump.h>
-#include "nrLDPC_offload.h"
+#include "PHY/CODING/nrLDPC_decoder/nrLDPC_offload.h"
 
 #include <math.h>
 

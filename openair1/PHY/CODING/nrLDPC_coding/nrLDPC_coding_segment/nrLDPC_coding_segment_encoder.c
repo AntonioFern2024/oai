@@ -19,7 +19,7 @@
  *      contact@openairinterface.org
  */
 
-/*! \file PHY/CODING/nrLDPC_coding_interface_demo_encoder.c
+/*! \file PHY/CODING/nrLDPC_coding/nrLDPC_coding_segment/nrLDPC_coding_segment_encoder.c
 * \brief Top-level routines for implementing LDPC encoding of transport channels
 * \author H.Wang
 * \date 2018
@@ -34,7 +34,7 @@
 #include "PHY/CODING/coding_extern.h"
 #include "PHY/CODING/coding_defs.h"
 #include "PHY/CODING/lte_interleaver_inline.h"
-#include "PHY/CODING/nrLDPC_coding_interface.h"
+#include "PHY/CODING/nrLDPC_coding/nrLDPC_coding_interface.h"
 #include "PHY/CODING/nrLDPC_extern.h"
 #include "PHY/NR_TRANSPORT/nr_transport_proto.h"
 #include "PHY/NR_TRANSPORT/nr_transport_common_proto.h"
@@ -49,14 +49,14 @@
 //#define DEBUG_LDPC_ENCODING
 //#define DEBUG_LDPC_ENCODING_FREE 1
 
-extern ldpc_interface_t ldpc_interface_demo;
+extern ldpc_interface_t ldpc_interface_segment;
 
 typedef struct ldpc8blocks_args_s {
   nrLDPC_TB_encoding_parameters_t *nrLDPC_TB_encoding_parameters;
   encoder_implemparams_t impp;
 } ldpc8blocks_args_t;
 
-static void ldpc8blocks_demo(void *p)
+static void ldpc8blocks_coding_segment(void *p)
 {
   ldpc8blocks_args_t *args = (ldpc8blocks_args_t *)p;
   nrLDPC_TB_encoding_parameters_t *nrLDPC_TB_encoding_parameters = args->nrLDPC_TB_encoding_parameters;
@@ -78,7 +78,7 @@ static void ldpc8blocks_demo(void *p)
   uint8_t *c[nrLDPC_TB_encoding_parameters->C];
   for (int r = 0; r < nrLDPC_TB_encoding_parameters->C; r++)
     c[r]=nrLDPC_TB_encoding_parameters->segments[r].c;
-  ldpc_interface_demo.LDPCencoder(c, d, impp);
+  ldpc_interface_segment.LDPCencoder(c, d, impp);
   // Compute where to place in output buffer that is concatenation of all segments
   uint32_t r_offset=0;
   for (int i=0; i < impp->macro_num*8; i++ )
@@ -194,7 +194,7 @@ static int nrLDPC_prepare_TB_encoding(nrLDPC_slot_encoding_parameters_t *nrLDPC_
 
   int nbJobs = 0;
   for (int j = 0; j < (impp.n_segments / 8 + ((impp.n_segments & 7) == 0 ? 0 : 1)); j++) {
-    notifiedFIFO_elt_t *req = newNotifiedFIFO_elt(sizeof(ldpc8blocks_args_t), j, nrLDPC_slot_encoding_parameters->respEncode, ldpc8blocks_demo);
+    notifiedFIFO_elt_t *req = newNotifiedFIFO_elt(sizeof(ldpc8blocks_args_t), j, nrLDPC_slot_encoding_parameters->respEncode, ldpc8blocks_coding_segment);
     ldpc8blocks_args_t *perJobImpp = (ldpc8blocks_args_t *)NotifiedFifoData(req);
     impp.macro_num = j;
     perJobImpp->impp = impp;

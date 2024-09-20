@@ -202,8 +202,8 @@ Libraries implementing the LDPC algorithms must be named `libldpc<_version>.so`,
 `libldpc_cl.so`is under development.
 
 ## LDPC slot coding
-The interface of the library is defined in [nrLDPC_coding_interface.h](file://../nrLDPC_coding_interface.h).
-The code loading the LDPC library is in [nrLDPC_coding_interface_load.c](file://../nrLDPC_coding_interface_load.c), in function `load_nrLDPC_coding_interface`, which must be called at init time.
+The interface of the library is defined in [nrLDPC_coding_interface.h](file://../nrLDPC_coding/nrLDPC_coding_interface.h).
+The code loading the LDPC library is in [nrLDPC_coding_interface_load.c](file://../nrLDPC_coding/nrLDPC_coding_interface_load.c), in function `load_nrLDPC_coding_interface`, which must be called at init time.
 
 ### Selecting the LDPC library at run time
 
@@ -213,22 +213,25 @@ This default behavior can be changed using the oai loader configuration options 
 
 #### Examples of ldpc shared lib selection when running nr softmodem's:
 
-loading `libldpc_slot_demo.so` instead of `libldpc.so`:
+loading `libldpc_slot_segment.so` instead of `libldpc.so`:
 
 ```
-./nr-softmodem -O libconfig:gnb.band78.tm1.106PRB.usrpx300.conf:dbgl5  --loader.ldpc.shlibversion _slot_demo
+./nr-softmodem -O libconfig:gnb.band78.tm1.106PRB.usrpx300.conf:dbgl5  --loader.ldpc.shlibversion _slot_segment
 .......................
 [CONFIG] loader.ldpc.shlibversion set to default value ""
 [LIBCONFIG] loader.ldpc: 2/2 parameters successfully set, (1 to default value)
-[CONFIG] shlibversion set to  _slot_demo from command line
+[CONFIG] shlibversion set to  _slot_segment from command line
 [CONFIG] loader.ldpc 1 options set from command line
-shlib_path libldpc_slot_demo.so
-[LOADER] library libldpc_slot_demo.so successfully loaded
+shlib_path libldpc_slot_segment.so
+[LOADER] library libldpc_slot_segment.so successfully loaded
 ........................
 ```
 
-*Note: `libldpc_slot_demo.so` is just to showcase the slot coding interface and uses a segment coding library behind.*
-*The segment coding library is `libldpc.so` by default but it can be chosen with option `--nrLDPC_coding_demo.segment_shlibversion` followed by the library version - like with `--loder.ldpc.shlibversion` in the segment coding case above -*
+`libldpc_slot_segment.so` has its decoder implemented in [nrLDPC_coding_segment_decoder.c](file://../nrLDPC_coding/nrLDPC_coding_segment/nrLDPC_coding_segment_decoder.c).\
+Its encoder is implemented in [nrLDPC_coding_segment_encoder.c](file://../nrLDPC_coding/nrLDPC_coding_segment/nrLDPC_coding_segment_encoder.c).
+
+*Note: `libldpc_slot_segment.so` is just to test the slot coding interface and uses a segment coding library behind.*
+*The segment coding library is `libldpc.so` by default but it can be chosen with option `--nrLDPC_coding_segment.segment_shlibversion` followed by the library version - like with `--loder.ldpc.shlibversion` in the segment coding case above -*
 
 loading `libldpc_slot_t2.so` instead of `libldpc.so`:
 
@@ -237,7 +240,7 @@ loading `libldpc_slot_t2.so` instead of `libldpc.so`:
 This command creates the `libldpc_slot_t2.so` shared library.
 
 ```
-Building C object CMakeFiles/ldpc_slot_t2.dir/openair1/PHY/CODING/nrLDPC_decoder/nrLDPC_coding_t2.c.o
+Building C object CMakeFiles/ldpc_slot_t2.dir/openair1/PHY/CODING/nrLDPC_coding/nrLDPC_coding_t2/nrLDPC_coding_t2.c.o
 Linking C shared module libldpc_slot_t2.so
 ```
 
@@ -257,6 +260,8 @@ shlib_path libldpc_slot_t2.so
 [LOADER] library libldpc_slot_t2.so successfully loaded
 ........................
 ```
+
+`libldpc_slot_t2.so` has its decoder and its encoder implemented in [nrLDPC_coding_t2.c](file://../nrLDPC_coding/nrLDPC_coding_t2/nrLDPC_coding_t2.c).
 
 loading `libldpc_xdma.so` instead of `libldpc.so`:
 
@@ -285,15 +290,23 @@ shlib_path libldpc_xdma.so
 ........................
 ``` 
 
+`libldpc_xdma.so` has its decoder implemented in [nrLDPC_coding_xdma.c](file://../nrLDPC_coding/nrLDPC_coding_xdma/nrLDPC_coding_xdma.c).\
+Its encoder is implemented in [nrLDPC_coding_segment_encoder.c](file://../nrLDPC_coding/nrLDPC_coding_segment/nrLDPC_coding_segment_encoder.c).
+
+*Note: `libldpc_xdma.so` relies on a segment coding library for encoding.*
+*The segment coding library is `libldpc.so` by default but it can be chosen with option `--nrLDPC_coding_xdma.encoder_shlibversion` followed by the library version - like with `--loder.ldpc.shlibversion` in the segment coding case above -*
+
 #### Examples of ldpc shared lib selection when running ldpctest:
 
-Slot decoding libraries cannot be used yet within ldpctest.
-But they can be used within nr_ulsim, nr_dlsim, nr_ulschsim and nr_dlschsim.
+Slot coding libraries cannot be used yet within ldpctest.
+
+But they can be used within nr_ulsim, nr_dlsim, nr_ulschsim and nr_dlschsim.\
+In these PHY simulators, using the slot coding libraries is enabled in the exact same way as in nr-softmodem.
 
 ### LDPC libraries
-Libraries implementing the slotwise LDPC decoding must be named `libldpc<_version>.so`. They must implement four functions: `nrLDPC_coding_init`, `nrLDPC_coding_shutdown`, `nrLDPC_coding_decoder` and `nrLDPC_coding_encoder`. The prototypes for these functions is defined in [nrLDPC_coding_interface.h](file://../nrLDPC_coding_interface.h).
+Libraries implementing the slotwise LDPC decoding must be named `libldpc<_version>.so`. They must implement four functions: `nrLDPC_coding_init`, `nrLDPC_coding_shutdown`, `nrLDPC_coding_decoder` and `nrLDPC_coding_encoder`. The prototypes for these functions is defined in [nrLDPC_coding_interface.h](file://../nrLDPC_coding/nrLDPC_coding_interface.h).
 
-`libldpc_slot_demo.so` is completed.
+`libldpc_slot_segment.so` is completed.
 
 `libldpc_slot_t2.so` is not implemented on this branch.
 

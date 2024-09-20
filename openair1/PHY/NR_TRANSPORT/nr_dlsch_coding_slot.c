@@ -34,7 +34,7 @@
 #include "PHY/CODING/coding_extern.h"
 #include "PHY/CODING/coding_defs.h"
 #include "PHY/CODING/lte_interleaver_inline.h"
-#include "PHY/CODING/nrLDPC_coding_interface.h"
+#include "PHY/CODING/nrLDPC_coding/nrLDPC_coding_interface.h"
 #include "PHY/CODING/nrLDPC_extern.h"
 #include "PHY/NR_TRANSPORT/nr_transport_proto.h"
 #include "PHY/NR_TRANSPORT/nr_transport_common_proto.h"

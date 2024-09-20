@@ -28,7 +28,7 @@
 #include "PHY/phy_extern_nr_ue.h"
 #include "PHY/CODING/coding_extern.h"
 #include "PHY/CODING/coding_defs.h"
-#include "PHY/CODING/nrLDPC_coding_interface.h"
+#include "PHY/CODING/nrLDPC_coding/nrLDPC_coding_interface.h"
 #include "PHY/NR_UE_TRANSPORT/nr_transport_proto_ue.h"
 #include "SCHED_NR_UE/defs.h"
 #include "SIMULATION/TOOLS/sim.h"

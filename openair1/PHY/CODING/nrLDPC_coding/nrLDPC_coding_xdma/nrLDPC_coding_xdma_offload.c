@@ -34,7 +34,7 @@
 #include <sys/types.h>
 
 #include "xdma_diag.h"
-#include "nrLDPC_decoder_offload_xdma.h"
+#include "nrLDPC_coding_xdma_offload.h"
 
 typedef unsigned long long U64;
 static struct option const long_opts[] = {{"device", required_argument, NULL, 'd'},
