@@ -91,6 +91,7 @@ typedef struct {
   int N_RB_DL;
   int ssb_start_subcarrier;
   int ldpc_offload_flag;
+  int nrLDPC_coding_interface_flag;
   double time_sync_P;
   double time_sync_I;
   unsigned int ntn_koffset;
