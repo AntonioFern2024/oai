@@ -55,6 +55,37 @@ static int capture_ipv6_addr(const uint8_t *addr, char *ip, size_t len)
                   addr[7]);
 }
 
+typedef struct {
+  int iei;
+  const char* description;
+} iei_string_map_t;
+
+
+iei_string_map_t iei_map[] = {{IEI_5GSM_CAUSE, "5GSM cause"},
+                              {IEI_PDU_ADDRESS, "PDU address"},
+                              {IEI_RQ_TIMER_VALUE, "GPRS timer"},
+                              {IEI_SNSSAI, "S-NSSAI"},
+                              {IEI_ALWAYSON_PDU, "Always-on PDU session indication"},
+                              {IEI_MAPPED_EPS, "Mapped EPS bearer contexts"},
+                              {IEI_EAP_MSG, "EAP message"},
+                              {IEI_AUTH_QOS_DESC, "Authorized QoS flow descriptions"},
+                              {IEI_EXT_CONF_OPT, "Extended protocol configuration options"},
+                              {IEI_DNN, "DNN"}};
+
+/**
+ * @brief Lookup the IEI string for logging purposes
+ */
+static const char *get_iei_description(int iei)
+{
+  size_t map_size = sizeof(iei_map) / sizeof(iei_map[0]);
+  for (size_t i = 0; i < map_size; i++) {
+    if (iei_map[i].iei == iei) {
+      return iei_map[i].description;
+    }
+  }
+  return "Unknown IEI";
+}
+
 void capture_pdu_session_establishment_accept_msg(uint8_t *buffer, uint32_t msg_length)
 {
   security_protected_nas_5gs_msg_t       sec_nas_hdr;
@@ -115,14 +146,13 @@ void capture_pdu_session_establishment_accept_msg(uint8_t *buffer, uint32_t msg_
   /* Optional Presence IEs */
   while (curPtr < buffer + msg_length) {
     uint8_t psea_iei = *curPtr++;
+    LOG_T(NAS, "PDU SESSION ESTABLISHMENT ACCEPT - Received %s IEI\n", get_iei_description(psea_iei));
     switch (psea_iei) {
       case IEI_5GSM_CAUSE: /* Ommited */
-        LOG_T(NAS, "PDU SESSION ESTABLISHMENT ACCEPT - Received 5GSM Cause IEI\n");
         curPtr++;
         break;
 
       case IEI_PDU_ADDRESS:
-        LOG_T(NAS, "PDU SESSION ESTABLISHMENT ACCEPT - Received PDU Address IE\n");
         psea_msg.pdu_addr_ie.pdu_length = *curPtr++;
         /* PDU type */
         psea_msg.pdu_addr_ie.pdu_type = *curPtr & 0x07;
@@ -165,47 +195,39 @@ void capture_pdu_session_establishment_accept_msg(uint8_t *buffer, uint32_t msg_
         break;
 
       case IEI_RQ_TIMER_VALUE: /* Ommited */
-        LOG_T(NAS, "PDU SESSION ESTABLISHMENT ACCEPT - Received RQ timer value IE\n");
         curPtr++; /* TS 24.008 10.5.7.3 */
         break;
 
       case IEI_SNSSAI: /* Ommited */
-        LOG_T(NAS, "PDU SESSION ESTABLISHMENT ACCEPT - Received S-NSSAI IE\n");
         uint8_t snssai_length = *curPtr;
         curPtr += (snssai_length + sizeof(snssai_length));
         break;
 
       case IEI_ALWAYSON_PDU: /* Ommited */
-        LOG_T(NAS, "PDU SESSION ESTABLISHMENT ACCEPT - Received Always-on PDU Session indication IE\n");
         curPtr++;
         break;
 
       case IEI_MAPPED_EPS: /* Ommited */
-        LOG_T(NAS, "PDU SESSION ESTABLISHMENT ACCEPT - Received Mapped EPS bearer context IE\n");
         uint16_t mapped_eps_length = getShort(curPtr);
         curPtr += mapped_eps_length;
         break;
 
       case IEI_EAP_MSG: /* Ommited */
-        LOG_T(NAS, "PDU SESSION ESTABLISHMENT ACCEPT - Received EAP message IE\n");
         uint16_t eap_length = getShort(curPtr);
         curPtr += (eap_length + sizeof(eap_length));
         break;
 
       case IEI_AUTH_QOS_DESC: /* Ommited */
-        LOG_T(NAS, "PDU SESSION ESTABLISHMENT ACCEPT - Received Authorized QoS flow descriptions IE\n");
         psea_msg.qos_fd_ie.length = getShort(curPtr);
         curPtr += (psea_msg.qos_fd_ie.length + sizeof(psea_msg.qos_fd_ie.length));
         break;
 
       case IEI_EXT_CONF_OPT: /* Ommited */
-        LOG_T(NAS, "PDU SESSION ESTABLISHMENT ACCEPT - Received Extended protocol configuration options IE\n");
         psea_msg.ext_pp_ie.length = getShort(curPtr);
         curPtr += (psea_msg.ext_pp_ie.length + sizeof(psea_msg.ext_pp_ie.length));
         break;
 
       case IEI_DNN:
-        LOG_T(NAS, "PDU SESSION ESTABLISHMENT ACCEPT - Received DNN IE\n");
         psea_msg.dnn_ie.dnn_length = *curPtr++;
         char apn[APN_MAX_LEN];
 
@@ -220,7 +242,6 @@ void capture_pdu_session_establishment_accept_msg(uint8_t *buffer, uint32_t msg_
         break;
 
       default:
-        LOG_T(NAS, "PDU SESSION ESTABLISHMENT ACCEPT - Not known IE\n");
         curPtr = buffer + msg_length; // we force stop processing
         break;
     }
