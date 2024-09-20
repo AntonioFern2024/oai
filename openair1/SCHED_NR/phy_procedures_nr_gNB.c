@@ -376,7 +376,7 @@ static int nr_ulsch_procedures_slot(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx
   NR_DL_FRAME_PARMS *frame_parms = &gNB->frame_parms;
 
   int nb_pusch = 0;
-  for (int ULSCH_id = 0; ULSCH_id < gNB->max_nb_pusch; ULSCH_id++) {
+  for (uint8_t ULSCH_id = 0; ULSCH_id < gNB->max_nb_pusch; ULSCH_id++) {
     NR_gNB_ULSCH_t *ulsch = &gNB->ulsch[ULSCH_id];
     if ((ulsch->active == true) && (ulsch->frame == frame_rx) && (ulsch->slot == slot_rx) && (ulsch->handled == 0)) {
       nb_pusch++;
@@ -387,10 +387,10 @@ static int nr_ulsch_procedures_slot(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx
     return 0;
   }
 
-  int *ULSCH_ids = calloc(nb_pusch,sizeof(int));
+  uint8_t *ULSCH_ids = calloc(nb_pusch,sizeof(uint8_t));
   uint32_t *G = calloc(nb_pusch,sizeof(uint32_t));
   int pusch_id = 0;
-  for (int ULSCH_id = 0; ULSCH_id < gNB->max_nb_pusch; ULSCH_id++) {
+  for (uint8_t ULSCH_id = 0; ULSCH_id < gNB->max_nb_pusch; ULSCH_id++) {
 
     ULSCH_ids[pusch_id] = ULSCH_id;
     NR_gNB_ULSCH_t *ulsch = &gNB->ulsch[ULSCH_id];
@@ -446,13 +446,24 @@ static int nr_ulsch_procedures_slot(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx
 
   // CRC check per uplink shared channel
   for (pusch_id = 0; pusch_id < nb_pusch; pusch_id++) {
-    int ULSCH_id = ULSCH_ids[pusch_id];
+    uint8_t ULSCH_id = ULSCH_ids[pusch_id];
     NR_gNB_ULSCH_t *ulsch = &gNB->ulsch[ULSCH_id];
     NR_gNB_PUSCH *pusch = &gNB->pusch_vars[ULSCH_id];
     NR_UL_gNB_HARQ_t *ulsch_harq = ulsch->harq_process;
     nfapi_nr_pusch_pdu_t *pusch_pdu = &ulsch_harq->ulsch_pdu;
 
-    bool crc_valid = check_crc(ulsch_harq->b, lenWithCrc(1, (ulsch_harq->TBS) << 3), crcType(1, (ulsch_harq->TBS) << 3));
+    bool crc_valid = false;
+
+    // if all segments are done
+    if (ulsch_harq->processedSegments == ulsch_harq->C) {
+      if (ulsch_harq->C > 1) {
+        crc_valid = check_crc(ulsch_harq->b, lenWithCrc(1, (ulsch_harq->TBS) << 3), crcType(1, (ulsch_harq->TBS) << 3));
+      } else {
+        // When the number of code blocks is 1 (C = 1) and ulsch_harq->processedSegments = 1, we can assume a good TB because of the
+        // CRC check made by the LDPC for early termination, so, no need to perform CRC check twice for a single code block
+        crc_valid = true;
+      }
+    }
 
     if (crc_valid && !check_abort(&ulsch_harq->abort_decode) && !pusch->DTX) {
       LOG_D(NR_PHY,

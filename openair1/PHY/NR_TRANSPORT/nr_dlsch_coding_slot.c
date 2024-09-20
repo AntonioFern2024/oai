@@ -79,6 +79,8 @@ int nr_dlsch_encoding_slot(PHY_VARS_gNB *gNB,
   nrLDPC_TB_encoding_parameters_t TBs[msgTx->num_pdsch_slot];
   nrLDPC_slot_encoding_parameters.TBs = TBs;
 
+  int max_num_segments = 0;
+
   for (int dlsch_id=0; dlsch_id<msgTx->num_pdsch_slot; dlsch_id++) {
 
     NR_gNB_DLSCH_t *dlsch = msgTx->dlsch[dlsch_id];
@@ -88,8 +90,21 @@ int nr_dlsch_encoding_slot(PHY_VARS_gNB *gNB,
     nfapi_nr_dl_tti_pdsch_pdu_rel15_t *rel15 = &harq->pdsch_pdu.pdsch_pdu_rel15;
     uint32_t A = rel15->TBSize[0]<<3;
     unsigned char *a=harq->pdu;
-    if (rel15->rnti != SI_RNTI)
-      trace_NRpdu(DIRECTION_DOWNLINK, a, rel15->TBSize[0], WS_C_RNTI, rel15->rnti, frame, slot,0, 0);
+    if (rel15->rnti != SI_RNTI) {
+      ws_trace_t tmp = {.nr = true,
+                        .direction = DIRECTION_DOWNLINK,
+                        .pdu_buffer = a,
+                        .pdu_buffer_size = rel15->TBSize[0],
+                        .ueid = 0,
+                        .rntiType = WS_C_RNTI,
+                        .rnti = rel15->rnti,
+                        .sysFrame = frame,
+                        .subframe = slot,
+                        .harq_pid = 0, // difficult to find the harq pid here
+                        .oob_event = 0,
+                        .oob_event_value = 0};
+      trace_pdu(&tmp);
+    }
 
     NR_gNB_PHY_STATS_t *phy_stats = NULL;
     if (rel15->rnti != 0xFFFF)
@@ -139,8 +154,10 @@ int nr_dlsch_encoding_slot(PHY_VARS_gNB *gNB,
 
     nrLDPC_TB_encoding_parameters_t nrLDPC_TB_encoding_parameters;
 
+    nrLDPC_TB_encoding_parameters.xlsch_id = dlsch_id;
     nrLDPC_TB_encoding_parameters.BG = rel15->maintenance_parms_v3.ldpcBaseGraph;
     nrLDPC_TB_encoding_parameters.Z = harq->Z;
+    nrLDPC_TB_encoding_parameters.A = A;
     start_meas(dlsch_segmentation_stats);
     nrLDPC_TB_encoding_parameters.Kb = nr_segmentation(harq->b,
                                                        harq->c,
@@ -156,19 +173,31 @@ int nr_dlsch_encoding_slot(PHY_VARS_gNB *gNB,
       LOG_E(PHY, "nr_segmentation.c: too many segments %d, B %d\n", nrLDPC_TB_encoding_parameters.C, B);
       return(-1);
     }
-    nrLDPC_TB_encoding_parameters.segments = calloc(nrLDPC_TB_encoding_parameters.C, sizeof(nrLDPC_segment_encoding_parameters_t));
-    for (int r=0; r<nrLDPC_TB_encoding_parameters.C; r++) {
+    max_num_segments = max(max_num_segments, nrLDPC_TB_encoding_parameters.C);
+
+    TBs[dlsch_id] = nrLDPC_TB_encoding_parameters;
+  }
+
+  nrLDPC_segment_encoding_parameters_t segments[msgTx->num_pdsch_slot][max_num_segments];
+
+  for (int dlsch_id = 0; dlsch_id < msgTx->num_pdsch_slot; dlsch_id++) {
+    NR_gNB_DLSCH_t *dlsch = msgTx->dlsch[dlsch_id];
+    NR_DL_gNB_HARQ_t *harq = &dlsch->harq_process;
+    nfapi_nr_dl_tti_pdsch_pdu_rel15_t *rel15 = &harq->pdsch_pdu.pdsch_pdu_rel15;
+
+    nrLDPC_TB_encoding_parameters_t nrLDPC_TB_encoding_parameters = TBs[dlsch_id];
+    nrLDPC_TB_encoding_parameters.segments = segments[dlsch_id];
+
+    for (int r = 0; r < nrLDPC_TB_encoding_parameters.C; r++) {
       nrLDPC_TB_encoding_parameters.segments[r].c = harq->c[r];
 #ifdef DEBUG_DLSCH_CODING
-      LOG_D(PHY,"Encoder: B %d F %d \n",harq->B, nrLDPC_TB_encoding_parameters.F);
-      LOG_D(PHY,"start ldpc encoder segment %d/%d\n",r,nrLDPC_TB_encoding_parameters.C);
-      LOG_D(PHY,"input %d %d %d %d %d \n", harq->c[r][0], harq->c[r][1], harq->c[r][2],harq->c[r][3], harq->c[r][4]);
-
-      for (int cnt =0 ; cnt < 22*(nrLDPC_TB_encoding_parameters.Z)/8; cnt ++) {
-        LOG_D(PHY,"%d ", harq->c[r][cnt]);
+      LOG_D(PHY, "Encoder: B %d F %d \n", harq->B, nrLDPC_TB_encoding_parameters.F);
+      LOG_D(PHY, "start ldpc encoder segment %d/%d\n", r, nrLDPC_TB_encoding_parameters.C);
+      LOG_D(PHY, "input %d %d %d %d %d \n", harq->c[r][0], harq->c[r][1], harq->c[r][2], harq->c[r][3], harq->c[r][4]);
+      for (int cnt = 0; cnt < 22 * (nrLDPC_TB_encoding_parameters.Z) / 8; cnt++) {
+        LOG_D(PHY, "%d ", harq->c[r][cnt]);
       }
-
-      LOG_D(PHY,"\n");
+      LOG_D(PHY, "\n");
 #endif
     }
 
@@ -190,11 +219,14 @@ int nr_dlsch_encoding_slot(PHY_VARS_gNB *gNB,
                                                rel15->nrOfLayers);
 
     nrLDPC_TB_encoding_parameters.tbslbrm = rel15->maintenance_parms_v3.tbSizeLbrmBytes;
-    nrLDPC_TB_encoding_parameters.A = A;
 
     int r_offset = 0;
     for (int r = 0; r < nrLDPC_TB_encoding_parameters.C; r++) {
-      nrLDPC_TB_encoding_parameters.segments[r].E = nr_get_E(nrLDPC_TB_encoding_parameters.G, nrLDPC_TB_encoding_parameters.C, nrLDPC_TB_encoding_parameters.Qm, rel15->nrOfLayers, r);
+      nrLDPC_TB_encoding_parameters.segments[r].E = nr_get_E(nrLDPC_TB_encoding_parameters.G,
+                                                             nrLDPC_TB_encoding_parameters.C,
+                                                             nrLDPC_TB_encoding_parameters.Qm,
+                                                             rel15->nrOfLayers,
+                                                             r);
       nrLDPC_TB_encoding_parameters.segments[r].output = output[dlsch_id] + r_offset;
       r_offset += nrLDPC_TB_encoding_parameters.segments[r].E;
     }
@@ -215,10 +247,6 @@ int nr_dlsch_encoding_slot(PHY_VARS_gNB *gNB,
       break; // Tpool has been stopped
     delNotifiedFIFO_elt(req);
     nbJobs--;
-  }
-
-  for (int dlsch_id=0; dlsch_id<msgTx->num_pdsch_slot; dlsch_id++) {
-    free(TBs[dlsch_id].segments);
   }
 
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_gNB_DLSCH_ENCODING, VCD_FUNCTION_OUT);

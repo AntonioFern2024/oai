@@ -66,7 +66,7 @@ int nr_ulsch_decoding_slot(PHY_VARS_gNB *phy_vars_gNB,
                            uint32_t frame,
                            uint8_t nr_tti_rx,
                            uint32_t *G,
-                           int *ULSCH_ids,
+                           uint8_t *ULSCH_ids,
                            int nb_pusch)
 {
 
@@ -81,12 +81,13 @@ int nr_ulsch_decoding_slot(PHY_VARS_gNB *phy_vars_gNB,
   nrLDPC_TB_decoding_parameters_t TBs[nb_pusch];
   nrLDPC_slot_decoding_parameters.TBs = TBs;
 
+  int max_num_segments = 0;
+
   for (uint8_t pusch_id = 0; pusch_id < nb_pusch; pusch_id++) {
-    int ULSCH_id = ULSCH_ids[pusch_id];
+    uint8_t ULSCH_id = ULSCH_ids[pusch_id];
     NR_gNB_ULSCH_t *ulsch = &phy_vars_gNB->ulsch[ULSCH_id];
     NR_gNB_PUSCH *pusch = &phy_vars_gNB->pusch_vars[ULSCH_id];
     NR_UL_gNB_HARQ_t *harq_process = ulsch->harq_process;
-    short *ulsch_llr = phy_vars_gNB->pusch_vars[ULSCH_id].llr;
     nfapi_nr_pusch_pdu_t *pusch_pdu = &phy_vars_gNB->ulsch[ULSCH_id].harq_process->ulsch_pdu;
 
     nrLDPC_TB_decoding_parameters_t nrLDPC_TB_decoding_parameters;
@@ -97,6 +98,8 @@ int nr_ulsch_decoding_slot(PHY_VARS_gNB *phy_vars_gNB,
       LOG_E(PHY, "ulsch_decoding.c: NULL harq_process pointer\n");
       return -1;
     }
+
+    nrLDPC_TB_decoding_parameters.xlsch_id = ULSCH_id;
   
     // ------------------------------------------------------------------
     nrLDPC_TB_decoding_parameters.nb_rb = pusch_pdu->rb_size;
@@ -168,6 +171,7 @@ int nr_ulsch_decoding_slot(PHY_VARS_gNB *phy_vars_gNB,
       LOG_E(PHY,"Illegal harq_process->C %d > %d\n",harq_process->C,a_segments);
       return -1;
     }
+    max_num_segments = max(max_num_segments, nrLDPC_TB_decoding_parameters.C);
   
 #ifdef DEBUG_ULSCH_DECODING
     printf("ulsch decoding nr segmentation Z %d\n", nrLDPC_TB_decoding_parameters.Z);
@@ -188,12 +192,22 @@ int nr_ulsch_decoding_slot(PHY_VARS_gNB *phy_vars_gNB,
     nrLDPC_TB_decoding_parameters.abort_decode = &harq_process->abort_decode;
     set_abort(&harq_process->abort_decode, false);
 
-    nrLDPC_TB_decoding_parameters.segments = calloc(nrLDPC_TB_decoding_parameters.C,
-                                                    sizeof(nrLDPC_segment_decoding_parameters_t));
+    TBs[pusch_id] = nrLDPC_TB_decoding_parameters;
+  }
+
+  nrLDPC_segment_decoding_parameters_t segments[nb_pusch][max_num_segments];
+
+  for (uint8_t pusch_id = 0; pusch_id < nb_pusch; pusch_id++) {
+    uint8_t ULSCH_id = ULSCH_ids[pusch_id];
+    NR_gNB_ULSCH_t *ulsch = &phy_vars_gNB->ulsch[ULSCH_id];
+    NR_UL_gNB_HARQ_t *harq_process = ulsch->harq_process;
+    short *ulsch_llr = phy_vars_gNB->pusch_vars[ULSCH_id].llr;
+
+    nrLDPC_TB_decoding_parameters_t nrLDPC_TB_decoding_parameters = TBs[pusch_id];
+    nrLDPC_TB_decoding_parameters.segments = segments[pusch_id];
 
     uint32_t r_offset = 0;
     for (int r = 0; r < nrLDPC_TB_decoding_parameters.C; r++) {
-
       nrLDPC_segment_decoding_parameters_t nrLDPC_segment_decoding_parameters;
       nrLDPC_segment_decoding_parameters.E = nr_get_E(nrLDPC_TB_decoding_parameters.G,
                                                       nrLDPC_TB_decoding_parameters.C,
@@ -230,19 +244,15 @@ int nr_ulsch_decoding_slot(PHY_VARS_gNB *phy_vars_gNB,
   // Execute thread pool tasks if any
   while (number_tasks_decode > 0) {
     notifiedFIFO_elt_t *req = pullTpool(&phy_vars_gNB->respDecode, &phy_vars_gNB->threadPool);
-    if (req == NULL) {
-      for (uint8_t ULSCH_id = 0; ULSCH_id < nb_pusch; ULSCH_id++) {
-        free(TBs[ULSCH_id].segments);
-      }
+    if (req == NULL)
       return -1; // Tpool has been stopped
-    }
     delNotifiedFIFO_elt(req);
     number_tasks_decode--;
   }
 
   // post decode
   for (uint8_t pusch_id = 0; pusch_id < nb_pusch; pusch_id++) {
-    int ULSCH_id = ULSCH_ids[pusch_id];
+    uint8_t ULSCH_id = ULSCH_ids[pusch_id];
     NR_gNB_ULSCH_t *ulsch = &phy_vars_gNB->ulsch[ULSCH_id];
     NR_UL_gNB_HARQ_t *harq_process = ulsch->harq_process;
 
@@ -253,6 +263,7 @@ int nr_ulsch_decoding_slot(PHY_VARS_gNB *phy_vars_gNB,
       nrLDPC_segment_decoding_parameters_t nrLDPC_segment_decoding_parameters = nrLDPC_TB_decoding_parameters.segments[r];
       // Copy c to b in case of decoding success
       if (nrLDPC_segment_decoding_parameters.decodeSuccess) {
+        harq_process->processedSegments++;
         memcpy(harq_process->b + offset, harq_process->c[r], (harq_process->K >> 3) - (harq_process->F >> 3) - ((harq_process->C > 1) ? 3 : 0));
       } else {
         LOG_D(PHY, "uplink segment error %d/%d\n", r, harq_process->C);
@@ -262,10 +273,5 @@ int nr_ulsch_decoding_slot(PHY_VARS_gNB *phy_vars_gNB,
     }
   }
 
-  for (uint8_t ULSCH_id = 0; ULSCH_id < nb_pusch; ULSCH_id++) {
-    free(TBs[ULSCH_id].segments);
-  }
-
   return 0;
-
 }

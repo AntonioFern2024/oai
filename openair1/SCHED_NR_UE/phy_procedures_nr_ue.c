@@ -739,9 +739,9 @@ static bool nr_ue_dlsch_procedures_slot(PHY_VARS_NR_UE *ue,
   }
 
   int G[2];
-  int DLSCH_ids[nb_dlsch];
+  uint8_t DLSCH_ids[nb_dlsch];
   int pdsch_id = 0;
-  for (int DLSCH_id = 0; DLSCH_id < 2; DLSCH_id++) {
+  for (uint8_t DLSCH_id = 0; DLSCH_id < 2; DLSCH_id++) {
     NR_DL_UE_HARQ_t *dl_harq = &ue->dl_harq_processes[DLSCH_id][harq_pid];
     if (dl_harq->status != ACTIVE) continue;
 
@@ -759,9 +759,9 @@ static bool nr_ue_dlsch_procedures_slot(PHY_VARS_NR_UE *ue,
     unav_res += compute_csi_rm_unav_res(dlsch_config);
     G[DLSCH_id] = nr_get_G(dlsch_config->number_rbs, nb_symb_sch, nb_re_dmrs, dmrs_len, unav_res, dlsch_config->qamModOrder, dlsch[DLSCH_id].Nl);
 
-    start_meas(&ue->dlsch_unscrambling_stats);
+    start_meas_nr_ue_phy(ue, DLSCH_UNSCRAMBLING_STATS);
     nr_dlsch_unscrambling(llr[DLSCH_id], G[DLSCH_id], 0, dlsch[DLSCH_id].dlsch_config.dlDataScramblingId, dlsch[DLSCH_id].rnti);
-    stop_meas(&ue->dlsch_unscrambling_stats);
+    stop_meas_nr_ue_phy(ue, DLSCH_UNSCRAMBLING_STATS);
   }
 
   // create memory to store decoder output
@@ -776,9 +776,9 @@ static bool nr_ue_dlsch_procedures_slot(PHY_VARS_NR_UE *ue,
   __attribute__((aligned(32))) uint8_t p_b_1[dlsch_bytes];
   uint8_t *p_b[2] = {p_b_0, p_b_1};
 
-  start_meas(&ue->dlsch_decoding_stats);
+  start_meas_nr_ue_phy(ue, DLSCH_DECODING_STATS);
   ret = nr_dlsch_decoding_slot(ue, proc, dlsch, llr, p_b, G, nb_dlsch, DLSCH_ids);
-  stop_meas(&ue->dlsch_decoding_stats);
+  stop_meas_nr_ue_phy(ue, DLSCH_DECODING_STATS);
 
   if (ret < ue->max_ldpc_iterations + 1) dec = true;
 
@@ -806,8 +806,14 @@ static bool nr_ue_dlsch_procedures_slot(PHY_VARS_NR_UE *ue,
 
   LOG_D(PHY, "DL PDU length in bits: %d, in bytes: %d \n", dlsch[0].dlsch_config.TBS, dlsch[0].dlsch_config.TBS / 8);
   if (cpumeas(CPUMEAS_GETSTATE)) {
-    LOG_D(PHY, " --> Unscrambling %5.3f\n", (ue->dlsch_unscrambling_stats.p_time) / (cpuf * 1000.0));
-    LOG_D(PHY, "AbsSubframe %d.%d --> LDPC Decoding %5.3f\n", frame_rx % 1024, nr_slot_rx, (ue->dlsch_decoding_stats.p_time) / (cpuf * 1000.0));
+    LOG_D(PHY,
+          " --> Unscrambling %5.3f\n",
+          ue->phy_cpu_stats.cpu_time_stats[DLSCH_UNSCRAMBLING_STATS].p_time / (cpuf * 1000.0));
+    LOG_D(PHY,
+          "AbsSubframe %d.%d --> LDPC Decoding %5.3f\n",
+          frame_rx % 1024,
+          nr_slot_rx,
+          ue->phy_cpu_stats.cpu_time_stats[DLSCH_DECODING_STATS].p_time / (cpuf * 1000.0));
   }
 
   // send to mac

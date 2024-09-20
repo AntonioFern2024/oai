@@ -49,11 +49,10 @@ uint32_t nr_dlsch_decoding_slot(PHY_VARS_NR_UE *phy_vars_ue,
                                 uint8_t **b,
                                 int *G,
                                 int nb_dlsch,
-                                int *DLSCH_ids)
+                                uint8_t *DLSCH_ids)
 {
   notifiedFIFO_t nf;
   initNotifiedFIFO(&nf);
-  bool *d_to_be_cleared[nb_dlsch];
 
   nrLDPC_slot_decoding_parameters_t slot_decoding_params;
   slot_decoding_params.frame = proc->frame_rx;
@@ -61,11 +60,13 @@ uint32_t nr_dlsch_decoding_slot(PHY_VARS_NR_UE *phy_vars_ue,
   slot_decoding_params.nb_TBs = nb_dlsch;
   slot_decoding_params.threadPool = &get_nrUE_params()->Tpool;
   slot_decoding_params.respDecode = &nf;
-  nrLDPC_TB_decoding_parameters_t *TBs = malloc(nb_dlsch * sizeof(nrLDPC_TB_decoding_parameters_t));
+  nrLDPC_TB_decoding_parameters_t TBs[nb_dlsch];
   slot_decoding_params.TBs = TBs;
 
+  int max_num_segments = 0;
+
   for (uint8_t pdsch_id = 0; pdsch_id < nb_dlsch; pdsch_id++) {
-    int DLSCH_id = DLSCH_ids[pdsch_id];
+    uint8_t DLSCH_id = DLSCH_ids[pdsch_id];
     fapi_nr_dl_config_dlsch_pdu_rel15_t *dlsch_config = &dlsch[DLSCH_id].dlsch_config;
     int harq_pid = dlsch_config->harq_process_nbr;
     NR_DL_UE_HARQ_t *harq_process = &phy_vars_ue->dl_harq_processes[DLSCH_id][harq_pid];
@@ -84,14 +85,12 @@ uint32_t nr_dlsch_decoding_slot(PHY_VARS_NR_UE *phy_vars_ue,
 
     if (!harq_process) {
       LOG_E(PHY, "dlsch_decoding_slot.c: NULL harq_process pointer\n");
-      for (uint8_t pdsch_id_inner = 0; pdsch_id_inner < pdsch_id; pdsch_id_inner++) {
-        free(TBs[pdsch_id_inner].segments);
-        free(d_to_be_cleared[pdsch_id_inner]);
-      }
       return dlsch[DLSCH_id].max_ldpc_iterations + 1;
     }
 
     nrLDPC_TB_decoding_parameters_t *TB_decoding_params = &TBs[pdsch_id];
+
+    TB_decoding_params->xlsch_id = DLSCH_id;
 
     // ------------------------------------------------------------------
     TB_decoding_params->G = G[DLSCH_id];
@@ -143,10 +142,6 @@ uint32_t nr_dlsch_decoding_slot(PHY_VARS_NR_UE *phy_vars_ue,
 
       if (harq_process->C > MAX_NUM_NR_DLSCH_SEGMENTS_PER_LAYER * TB_decoding_params->nb_layers) {
         LOG_E(PHY, "nr_segmentation.c: too many segments %d, A %d\n", harq_process->C, TB_decoding_params->A);
-        for (uint8_t pdsch_id_inner = 0; pdsch_id_inner < pdsch_id; pdsch_id_inner++) {
-          free(TBs[pdsch_id_inner].segments);
-          free(d_to_be_cleared[pdsch_id_inner]);
-        }
         return dlsch[DLSCH_id].max_ldpc_iterations + 1;
       }
 
@@ -162,6 +157,7 @@ uint32_t nr_dlsch_decoding_slot(PHY_VARS_NR_UE *phy_vars_ue,
       TB_decoding_params->Z = harq_process->Z;
       TB_decoding_params->F = harq_process->F;
     }
+    max_num_segments = max(max_num_segments, TB_decoding_params->C);
 
     VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_DLSCH_SEGMENTATION, VCD_FUNCTION_OUT);
 
@@ -174,13 +170,25 @@ uint32_t nr_dlsch_decoding_slot(PHY_VARS_NR_UE *phy_vars_ue,
     TB_decoding_params->tbslbrm = dlsch_config->tbslbrm;
     TB_decoding_params->abort_decode = &harq_process->abort_decode;
     set_abort(&harq_process->abort_decode, false);
+  }
 
-    TB_decoding_params->segments = malloc(TB_decoding_params->C * sizeof(nrLDPC_segment_decoding_parameters_t));
-    d_to_be_cleared[pdsch_id] = malloc(TB_decoding_params->C * sizeof(bool));
+  nrLDPC_segment_decoding_parameters_t segments[nb_dlsch][max_num_segments];
+  bool d_to_be_cleared[nb_dlsch][max_num_segments];
+
+  for (uint8_t pdsch_id = 0; pdsch_id < nb_dlsch; pdsch_id++) {
+    uint8_t DLSCH_id = DLSCH_ids[pdsch_id];
+    fapi_nr_dl_config_dlsch_pdu_rel15_t *dlsch_config = &dlsch[DLSCH_id].dlsch_config;
+    int harq_pid = dlsch_config->harq_process_nbr;
+    NR_DL_UE_HARQ_t *harq_process = &phy_vars_ue->dl_harq_processes[DLSCH_id][harq_pid];
+    nrLDPC_TB_decoding_parameters_t *TB_decoding_params = &TBs[pdsch_id];
+    TB_decoding_params->segments = segments[pdsch_id];
 
     uint32_t r_offset = 0;
     for (int r = 0; r < TB_decoding_params->C; r++) {
-      d_to_be_cleared[pdsch_id][r] = true;
+      if (harq_process->first_rx == 1)
+        d_to_be_cleared[pdsch_id][r] = true;
+      else
+        d_to_be_cleared[pdsch_id][r] = false;
       nrLDPC_segment_decoding_parameters_t *segment_decoding_params = &TB_decoding_params->segments[r];
       segment_decoding_params->E =
           nr_get_E(TB_decoding_params->G, TB_decoding_params->C, TB_decoding_params->Qm, TB_decoding_params->nb_layers, r);
@@ -199,26 +207,22 @@ uint32_t nr_dlsch_decoding_slot(PHY_VARS_NR_UE *phy_vars_ue,
       r_offset += segment_decoding_params->E;
     }
   }
+
   int number_tasks_decode = nrLDPC_coding_interface.nrLDPC_coding_decoder(&slot_decoding_params);
 
   // Execute thread pool tasks if any
   while (number_tasks_decode > 0) {
     notifiedFIFO_elt_t *req = pullTpool(&nf, &get_nrUE_params()->Tpool);
-    if (req == NULL) {
-      for (uint8_t pdsch_id = 0; pdsch_id < nb_dlsch; pdsch_id++) {
-        free(TBs[pdsch_id].segments);
-        free(d_to_be_cleared[pdsch_id]);
-      }
-      return -1; // Tpool has been stopped
-    }
+    if (req == NULL)
+      return dlsch[0].last_iteration_cnt; // Tpool has been stopped
     delNotifiedFIFO_elt(req);
     number_tasks_decode--;
   }
 
   // post decode
-  int num_seg_ok = 0;
   for (uint8_t pdsch_id = 0; pdsch_id < nb_dlsch; pdsch_id++) {
-    int DLSCH_id = DLSCH_ids[pdsch_id];
+    int num_seg_ok = 0;
+    uint8_t DLSCH_id = DLSCH_ids[pdsch_id];
     fapi_nr_dl_config_dlsch_pdu_rel15_t *dlsch_config = &dlsch[DLSCH_id].dlsch_config;
     int harq_pid = dlsch_config->harq_process_nbr;
     NR_DL_UE_HARQ_t *harq_process = &phy_vars_ue->dl_harq_processes[DLSCH_id][harq_pid];
@@ -291,11 +295,6 @@ uint32_t nr_dlsch_decoding_slot(PHY_VARS_NR_UE *phy_vars_ue,
       dlsch[DLSCH_id].last_iteration_cnt = dlsch[DLSCH_id].max_ldpc_iterations + 1;
       LOG_D(PHY, "DLSCH %d received nok\n", DLSCH_id);
     }
-  }
-
-  for (uint8_t pdsch_id = 0; pdsch_id < nb_dlsch; pdsch_id++) {
-    free(TBs[pdsch_id].segments);
-    free(d_to_be_cleared[pdsch_id]);
   }
 
   return dlsch[0].last_iteration_cnt;
