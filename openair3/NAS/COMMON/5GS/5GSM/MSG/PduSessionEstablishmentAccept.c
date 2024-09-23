@@ -205,36 +205,41 @@ void capture_pdu_session_establishment_accept_msg(uint8_t *buffer, uint32_t msg_
         curPtr++; /* TS 24.008 10.5.7.3 */
         break;
 
-      case IEI_SNSSAI: /* Ommited */
+      case IEI_SNSSAI: {
         uint8_t snssai_length = *curPtr;
         curPtr += (snssai_length + sizeof(snssai_length));
         break;
+      }
 
       case IEI_ALWAYSON_PDU: /* Ommited */
         curPtr++;
         break;
 
-      case IEI_MAPPED_EPS: /* Ommited */
+      case IEI_MAPPED_EPS: {
         uint16_t mapped_eps_length = getShort(curPtr);
         curPtr += mapped_eps_length;
         break;
+      }
 
-      case IEI_EAP_MSG: /* Ommited */
+      case IEI_EAP_MSG: {
         uint16_t eap_length = getShort(curPtr);
         curPtr += (eap_length + sizeof(eap_length));
         break;
+      }
 
-      case IEI_AUTH_QOS_DESC: /* Ommited */
+      case IEI_AUTH_QOS_DESC: {
         psea_msg.qos_fd_ie.length = getShort(curPtr);
         curPtr += (psea_msg.qos_fd_ie.length + sizeof(psea_msg.qos_fd_ie.length));
         break;
+      }
 
-      case IEI_EXT_CONF_OPT: /* Ommited */
+      case IEI_EXT_CONF_OPT: {
         psea_msg.ext_pp_ie.length = getShort(curPtr);
         curPtr += (psea_msg.ext_pp_ie.length + sizeof(psea_msg.ext_pp_ie.length));
         break;
+      }
 
-      case IEI_DNN:
+      case IEI_DNN: {
         psea_msg.dnn_ie.dnn_length = *curPtr++;
         char apn[APN_MAX_LEN];
 
@@ -246,6 +251,7 @@ void capture_pdu_session_establishment_accept_msg(uint8_t *buffer, uint32_t msg_
 
         curPtr = buffer + msg_length; // we force stop processing
         break;
+      }
 
       default:
         curPtr = buffer + msg_length; // we force stop processing
