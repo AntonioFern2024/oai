@@ -5422,8 +5422,8 @@ void dft144(int16_t *x,int16_t *y,unsigned char scale_flag)
   int i,j;
   simd_q15_t *x128=(simd_q15_t *)x;
   simd_q15_t *y128=(simd_q15_t *)y;
-  simd_q15_t *twa128=(simd_q15_t *)&twa144[0];
-  simd_q15_t *twb128=(simd_q15_t *)&twb144[0];
+  simd_q15_t *twa128 = (simd_q15_t *)twa144;
+  simd_q15_t *twb128 = (simd_q15_t *)twb144;
   simd_q15_t x2128[144];// = (simd_q15_t *)&x2128array[0];
   simd_q15_t ytmp128[144];//=&ytmp128array2[0];
 
@@ -7908,8 +7908,9 @@ int dfts_autoinit(void)
 
 #ifndef MR_MAIN
 
-void dft(uint8_t sizeidx, int16_t *input,int16_t *output,unsigned char scale_flag){
-	AssertFatal((sizeidx >= 0 && sizeidx<DFT_SIZE_IDXTABLESIZE),"Invalid dft size index %i\n",sizeidx);
+void dft_implementation(uint8_t sizeidx, int16_t *input, int16_t *output, unsigned char scale_flag)
+{
+  AssertFatal((sizeidx >= 0 && sizeidx<DFT_SIZE_IDXTABLESIZE),"Invalid dft size index %i\n",sizeidx);
         int algn=0xF;
         if ( (dft_ftab[sizeidx].size%3) != 0 ) // there is no AVX2 implementation for multiples of 3 DFTs
           algn=0x1F;
@@ -7926,8 +7927,9 @@ void dft(uint8_t sizeidx, int16_t *input,int16_t *output,unsigned char scale_fla
           dft_ftab[sizeidx].func(input,output,scale_flag);
 };
 
-void idft(uint8_t sizeidx, int16_t *input,int16_t *output,unsigned char scale_flag){
-	AssertFatal((sizeidx>=0 && sizeidx<DFT_SIZE_IDXTABLESIZE),"Invalid idft size index %i\n",sizeidx);
+void idft_implementation(uint8_t sizeidx, int16_t *input, int16_t *output, unsigned char scale_flag)
+{
+  AssertFatal((sizeidx>=0 && sizeidx<DFT_SIZE_IDXTABLESIZE),"Invalid idft size index %i\n",sizeidx);
         int algn=0xF;
 	algn=0x1F;
         AssertFatal( ((intptr_t)output&algn)==0,"Buffers should be 16 bytes aligned %p",output);

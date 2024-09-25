@@ -7125,8 +7125,9 @@ int dfts_autoinit(void)
 
 #ifndef MR_MAIN
 
-void dft(uint8_t sizeidx, int16_t *input,int16_t *output,unsigned char scale_flag){
-	AssertFatal((sizeidx >= 0 && sizeidx<DFT_SIZE_IDXTABLESIZE),"Invalid dft size index %i\n",sizeidx);
+void dft_implementation(uint8_t sizeidx, int16_t *input, int16_t *output, unsigned char scale_flag)
+{
+  AssertFatal((sizeidx >= 0 && sizeidx<DFT_SIZE_IDXTABLESIZE),"Invalid dft size index %i\n",sizeidx);
         int algn=0xF;
         AssertFatal(((intptr_t)output&algn)==0,"Buffers should be aligned %p",output);
         if (((intptr_t)input)&algn) {
@@ -7141,8 +7142,9 @@ void dft(uint8_t sizeidx, int16_t *input,int16_t *output,unsigned char scale_fla
           dft_ftab[sizeidx].func(input,output,scale_flag);
 };
 
-void idft(uint8_t sizeidx, int16_t *input,int16_t *output,unsigned char scale_flag){
-	AssertFatal((sizeidx>=0 && sizeidx<DFT_SIZE_IDXTABLESIZE),"Invalid idft size index %i\n",sizeidx);
+void idft_implementation(uint8_t sizeidx, int16_t *input, int16_t *output, unsigned char scale_flag)
+{
+  AssertFatal((sizeidx>=0 && sizeidx<DFT_SIZE_IDXTABLESIZE),"Invalid idft size index %i\n",sizeidx);
         int algn=0xF;
         AssertFatal( ((intptr_t)output&algn)==0,"Buffers should be 16 bytes aligned %p",output);
         if (((intptr_t)input)&algn ) {  
