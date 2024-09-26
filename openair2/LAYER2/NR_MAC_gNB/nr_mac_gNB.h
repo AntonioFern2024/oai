@@ -894,6 +894,9 @@ typedef struct gNB_MAC_INST_s {
   f1_config_t f1_config;
   int16_t frame;
 
+  // common K2 UL feedback time
+  int common_K2;
+
   pthread_mutex_t sched_lock;
 
 } gNB_MAC_INST;
