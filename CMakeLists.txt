@@ -1902,7 +1902,7 @@ add_executable(dft_test
   ${OPENAIR_DIR}/openair1/PHY/TOOLS/test_dft.c
   ${OPENAIR1_DIR}/PHY/TOOLS/dfts_load.c
 )
-target_link_libraries (dft_test minimal_lib shlib_loader m)
+target_link_libraries (dft_test minimal_lib shlib_loader SIMU m)
 
 add_executable(measurement_display
   ${OPENAIR_DIR}/common/utils/threadPool/measurement_display.c)

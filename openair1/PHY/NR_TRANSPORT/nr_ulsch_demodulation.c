@@ -46,6 +46,7 @@ void nr_idft(int32_t *z, uint32_t Msc_PUSCH)
       break;
     default:
       dft(dftsize, idft_in0, idft_out0, 1);
+      break;
   }
 
   if ((Msc_PUSCH % 1536) > 0) {

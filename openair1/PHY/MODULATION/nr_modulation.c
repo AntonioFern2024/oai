@@ -353,6 +353,7 @@ void nr_dft(c16_t *z, c16_t *d, uint32_t Msc_PUSCH)
       break;
     default:
       dft(dftsize, (int16_t *)dft_in0, (int16_t *)dft_out0, 1);
+      break; 
   }
 
   if ((Msc_PUSCH % 1536) > 0) {

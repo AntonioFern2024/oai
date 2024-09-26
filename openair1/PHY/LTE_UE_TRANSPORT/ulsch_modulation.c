@@ -111,6 +111,7 @@ void dft_lte(int32_t *z,struct complex16 *input, int32_t Msc_PUSCH, uint8_t Nsym
     dft(dftsize, (int16_t *)dft_in0, (int16_t *)dft_out0, 1);
     dft(dftsize, (int16_t *)dft_in1, (int16_t *)dft_out1, 1);
     dft(dftsize, (int16_t *)dft_in2, (int16_t *)dft_out2, 1);
+    break;
   }
 
   z0 = (uint32_t *)z;

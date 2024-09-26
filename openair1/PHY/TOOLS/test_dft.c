@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <math.h>
 #include "openair1/PHY/TOOLS/tools_defs.h"
-
+#include "openair1/SIMULATION/TOOLS/sim.h"
+#include "common/utils/utils.h"
 #define SZ_PTR(Sz) {Sz},
 struct {
   int size;
@@ -54,34 +55,41 @@ int main(void)
   load_dftslib();
   c16_t *d16 = malloc16(12 * dftFtab[sizeofArray(dftFtab) - 1].size * sizeof(*d16));
   c16_t *o16 = malloc16(12 * dftFtab[sizeofArray(dftFtab) - 1].size * sizeof(*d16));
-  for (int i = 0; i < sizeofArray(dftFtab); i++) {
-    const int n = dftFtab[i].size;
-    cd_t data[n], gslout[n];
-    int expand = SHRT_MAX / sqrt(n);
-
-    for (int i = 0; i < n; i++) {
-      data[i].r = 0;
-      data[i].i = 0;
-    }
-    data[0].r = 1.0;
-
-    for (int i = 1; i <= 10; i++) {
-      data[i].r = data[n - i].r = 1 * expand;
-    }
-
-    for (int i = 0; i < n; i++) {
-      d16[i].r = data[i].r;
-      d16[i].i = data[i].i;
-    }
-
-    dft(get_dft(n), (int16_t *)d16, (int16_t *)o16, 1);
+  for (int sz = 0; sz < sizeofArray(dftFtab); sz++) {
+    const int n = dftFtab[sz].size;
+    cd_t data[n];
+    double coeffs[] = {0.1, 0.25, 0.5, 1, 1.5, 2};
     cd_t out[n];
-    math_dft(data, out, n);
     for (int i = 0; i < n; i++) {
-      if (error(o16[i], out[i], 5))
-        printf("Error in dft %d at %d, (%d, %d) != %f, %f)\n", n, i, o16[i].r, o16[i].i, gslout[i].r, gslout[i].i);
+      data[i].r = gaussZiggurat(0, 0); // gaussZiggurat not used paramters, to fix
+      data[i].i = gaussZiggurat(0, 0);
     }
-    printf("done DFT size %d\n", n);
+    math_dft(data, out, n);
+    double evm[sizeofArray(coeffs)]={0};
+    for (int coeff=0; coeff<sizeofArray(coeffs); coeff++) {
+      double expand = coeffs[coeff] * SHRT_MAX / sqrt(n);
+
+      for (int i = 0; i < n; i++) {
+        d16[i].r = expand * data[i].r;
+        d16[i].i = expand * data[i].i;
+      }
+
+      dft(get_dft(n), (int16_t *)d16, (int16_t *)o16, 1);
+      for (int i = 0; i < n; i++) {
+        cd_t error = {.r = o16[i].r / expand - out[i].r, .i = o16[i].i / expand - out[i].i};
+        evm[coeff] += sqrt(squaredMod(error)) / sqrt(squaredMod(out[i]));
+        /*
+          if (error(o16[i], out[i], 5))
+          printf("Error in dft %d at %d, (%d, %d) != %f, %f)\n", n, i, o16[i].r, o16[i].i, gslout[i].r, gslout[i].i);
+        */
+      }
+    }
+    printf("done DFT size %d (evm (%%),amplitude) = ", n);
+    for (int coeff=0; coeff<sizeofArray(coeffs); coeff++)
+      printf("(%.2f, %.0f) ", evm[coeff] / n *100, coeffs[coeff]* SHRT_MAX / sqrt(n) );
+    printf("\n");
   }
+  free(d16);
+  free(o16);
   return 0;
 }
