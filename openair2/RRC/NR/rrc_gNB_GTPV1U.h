@@ -30,6 +30,9 @@
 #ifndef RRC_GNB_GTPV1U_H_
 #define RRC_GNB_GTPV1U_H_
 
+#include <common/utils/assertions.h>
+#include <stdint.h>
+#include "gtpv1_u_messages_types.h"
 
 int
 rrc_gNB_process_GTPV1U_CREATE_TUNNEL_RESP(

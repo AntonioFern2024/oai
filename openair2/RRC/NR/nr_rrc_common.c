@@ -28,16 +28,10 @@
  * \email:  navid.nikaein@eurecom.fr and raymond.knopp@eurecom.fr, kroempa@gmail.com
  */
 
-#include "nr_rrc_extern.h"
-#include "LAYER2/NR_MAC_COMMON/nr_mac_extern.h"
-#include "COMMON/openair_defs.h"
-#include "common/platform_types.h"
-#include "RRC/L2_INTERFACE/openair_rrc_L2_interface.h"
-#include "LAYER2/RLC/rlc.h"
-#include "COMMON/mac_rrc_primitives.h"
-#include "common/utils/LOG/log.h"
-#include "asn1_msg.h"
-#include "common/utils/LOG/vcd_signal_dumper.h"
+#include <assertions.h>
+#include "MAC/mac.h"
+#include "RRC/NR/nr_rrc_common.h"
+#include "RRC/NR/nr_rrc_proto.h"
 #include "common/ran_context.h"
 
 #define DEBUG_NR_RRC 1

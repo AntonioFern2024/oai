@@ -101,6 +101,7 @@
 #define MAX_NUM_NR_PRACH_PREAMBLES 64
 #define MIN_NUM_PRBS_TO_SCHEDULE  5
 #define MAX_NUM_BEAM_PERIODS 4
+#define NR_MAX_SIB_LENGTH 2976 // 3GPP TS 38.331 section 5.2.1
 
 extern const uint8_t nr_rv_round_map[4];
 
