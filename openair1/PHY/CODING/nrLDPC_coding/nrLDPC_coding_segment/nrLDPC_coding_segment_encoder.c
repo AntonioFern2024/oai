@@ -78,7 +78,9 @@ static void ldpc8blocks_coding_segment(void *p)
   uint8_t *c[nrLDPC_TB_encoding_parameters->C];
   for (int r = 0; r < nrLDPC_TB_encoding_parameters->C; r++)
     c[r]=nrLDPC_TB_encoding_parameters->segments[r].c;
+  start_meas(&nrLDPC_TB_encoding_parameters->segments[impp->macro_num*8].ts_ldpc_encode);
   ldpc_interface_segment.LDPCencoder(c, d, impp);
+  stop_meas(&nrLDPC_TB_encoding_parameters->segments[impp->macro_num*8].ts_ldpc_encode);
   // Compute where to place in output buffer that is concatenation of all segments
   uint32_t r_offset=0;
   for (int i=0; i < impp->macro_num*8; i++ )
@@ -110,6 +112,7 @@ static void ldpc8blocks_coding_segment(void *p)
 
     uint8_t e[E];
     bzero (e, E);
+    start_meas(&nrLDPC_TB_encoding_parameters->segments[rr].ts_rate_match);
     nr_rate_matching_ldpc(Tbslbrm,
                           impp->BG,
                           impp->Zc,
@@ -120,6 +123,7 @@ static void ldpc8blocks_coding_segment(void *p)
                           impp->K - impp->F - 2 * impp->Zc,
                           nrLDPC_TB_encoding_parameters->rv_index,
                           E);
+    stop_meas(&nrLDPC_TB_encoding_parameters->segments[rr].ts_rate_match);
     if (impp->K - impp->F - 2 * impp->Zc > E) {
       LOG_E(PHY,
             "dlsch coding A %d  Kr %d G %d (nb_rb %d, mod_order %d)\n",
@@ -148,10 +152,12 @@ static void ldpc8blocks_coding_segment(void *p)
       printf("output ratematching e[%d]= %d r_offset %u\n", i,e[i], r_offset);
 
 #endif
+    start_meas(&nrLDPC_TB_encoding_parameters->segments[rr].ts_interleave);
     nr_interleaving_ldpc(E,
                          mod_order,
                          e,
                          impp->output+r_offset);
+    stop_meas(&nrLDPC_TB_encoding_parameters->segments[rr].ts_interleave);
 #ifdef DEBUG_LDPC_ENCODING
 
     for (int i =0; i<16; i++)

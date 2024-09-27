@@ -39,6 +39,9 @@
  * \var decodeSuccess
  * flag indicating that the decoding of the segment was successful
  * IT MUST BE FILLED BY THE IMPLEMENTATION
+ * \var ts_deinterleave deinterleaving time stats
+ * \var ts_rate_unmatch rate unmatching time stats
+ * \var ts_ldpc_decode decoding time stats
  */
 typedef struct nrLDPC_segment_decoding_parameters_s{
   int E;
@@ -48,6 +51,9 @@ typedef struct nrLDPC_segment_decoding_parameters_s{
   bool *d_to_be_cleared;
   uint8_t *c;
   bool decodeSuccess;
+  time_stats_t ts_deinterleave;
+  time_stats_t ts_rate_unmatch;
+  time_stats_t ts_ldpc_decode;
 } nrLDPC_segment_decoding_parameters_t;
 
 /**
@@ -133,11 +139,17 @@ typedef struct nrLDPC_slot_decoding_parameters_s{
  * \var c Pointers to code blocks after LDPC decoding (38.212 V15.4.0 section 5.2.2)
  * flag indicating that the decoding of the segment was successful
  * IT MUST BE FILLED BY THE IMPLEMENTATION
+ * \var ts_interleave interleaving time stats
+ * \var ts_rate_match rate matching time stats
+ * \var ts_ldpc_encode encoding time stats
  */
 typedef struct nrLDPC_segment_encoding_parameters_s{
   int E;
   unsigned char *output;
   uint8_t *c;
+  time_stats_t ts_interleave;
+  time_stats_t ts_rate_match;
+  time_stats_t ts_ldpc_encode;
 } nrLDPC_segment_encoding_parameters_t;
 
 /**

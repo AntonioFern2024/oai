@@ -226,6 +226,10 @@ int nr_ulsch_decoding_slot(PHY_VARS_gNB *phy_vars_gNB,
       nrLDPC_segment_decoding_parameters.c = harq_process->c[r];
       nrLDPC_segment_decoding_parameters.decodeSuccess = false;
 
+      reset_meas(&nrLDPC_segment_decoding_parameters.ts_deinterleave);
+      reset_meas(&nrLDPC_segment_decoding_parameters.ts_rate_unmatch);
+      reset_meas(&nrLDPC_segment_decoding_parameters.ts_ldpc_decode);
+
       nrLDPC_TB_decoding_parameters.segments[r] = nrLDPC_segment_decoding_parameters;
       r_offset += nrLDPC_segment_decoding_parameters.E;
     }

@@ -229,6 +229,11 @@ int nr_dlsch_encoding_slot(PHY_VARS_gNB *gNB,
                                                              r);
       nrLDPC_TB_encoding_parameters.segments[r].output = output[dlsch_id] + r_offset;
       r_offset += nrLDPC_TB_encoding_parameters.segments[r].E;
+
+      reset_meas(&nrLDPC_TB_encoding_parameters.segments[r].ts_interleave);
+      reset_meas(&nrLDPC_TB_encoding_parameters.segments[r].ts_rate_match);
+      reset_meas(&nrLDPC_TB_encoding_parameters.segments[r].ts_ldpc_encode);
+
     }
 
     TBs[dlsch_id] = nrLDPC_TB_encoding_parameters;

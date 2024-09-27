@@ -206,6 +206,10 @@ uint32_t nr_dlsch_decoding_slot(PHY_VARS_NR_UE *phy_vars_ue,
       segment_decoding_params->c = harq_process->c[r];
       segment_decoding_params->decodeSuccess = false;
 
+      reset_meas(&segment_decoding_params->ts_deinterleave);
+      reset_meas(&segment_decoding_params->ts_rate_unmatch);
+      reset_meas(&segment_decoding_params->ts_ldpc_decode);
+
       r_offset += segment_decoding_params->E;
     }
   }
@@ -242,6 +246,11 @@ uint32_t nr_dlsch_decoding_slot(PHY_VARS_NR_UE *phy_vars_ue,
         LOG_D(PHY, "DLSCH %d in error\n", DLSCH_id);
       }
       offset += (harq_process->K >> 3) - (harq_process->F >> 3) - ((harq_process->C > 1) ? 3 : 0);
+
+      merge_meas(&phy_vars_ue->phy_cpu_stats.cpu_time_stats[DLSCH_DEINTERLEAVING_STATS], &segment_decoding_params->ts_deinterleave);
+      merge_meas(&phy_vars_ue->phy_cpu_stats.cpu_time_stats[DLSCH_RATE_UNMATCHING_STATS], &segment_decoding_params->ts_rate_unmatch);
+      merge_meas(&phy_vars_ue->phy_cpu_stats.cpu_time_stats[DLSCH_LDPC_DECODING_STATS], &segment_decoding_params->ts_ldpc_decode);
+
     }
 
     kpiStructure.nb_total++;
@@ -249,52 +258,78 @@ uint32_t nr_dlsch_decoding_slot(PHY_VARS_NR_UE *phy_vars_ue,
     kpiStructure.dl_mcs = dlsch_config->mcs;
     kpiStructure.nofRBs = dlsch_config->number_rbs;
 
-    if (harq_process->processedSegments == harq_process->C) {
-      if (harq_process->C > 1) {
-        int A = dlsch_config->TBS;
-        /* check global CRC */
-        // we have regrouped the transport block, so it is "1" segment
-        if (!check_crc(b[DLSCH_id], lenWithCrc(1, A), crcType(1, A))) {
-          harq_process->ack = 0;
-          dlsch[DLSCH_id].last_iteration_cnt = dlsch[DLSCH_id].max_ldpc_iterations + 1;
+    harq_process->decodeResult = harq_process->processedSegments == harq_process->C;
+
+    if (harq_process->decodeResult && harq_process->C > 1) {
+      /* check global CRC */
+      int A = dlsch->dlsch_config.TBS;
+      // we have regrouped the transport block
+      if (!check_crc(b[DLSCH_id], lenWithCrc(1, A), crcType(1, A))) {
+        LOG_E(PHY,
+              " Frame %d.%d LDPC global CRC fails, but individual LDPC CRC succeeded. %d segs\n",
+              proc->frame_rx,
+              proc->nr_slot_rx,
+              harq_process->C);
+        harq_process->decodeResult = false;
+      }
+    }
+
+    if (harq_process->decodeResult) {
+      // We search only a reccuring OAI error that propagates all 0 packets with a 0 CRC, so we
+      const int sz = dlsch->dlsch_config.TBS / 8;
+      if (b[DLSCH_id][sz] == 0 && b[DLSCH_id][sz + 1] == 0) {
+        // do the check only if the 2 first bytes of the CRC are 0 (it can be CRC16 or CRC24)
+        int i = 0;
+        while (b[DLSCH_id][i] == 0 && i < sz)
+          i++;
+        if (i == sz) {
           LOG_E(PHY,
-                "Frame %d.%d LDPC global CRC fails, but individual LDPC CRC succeeded. %d segs\n",
-                proc->frame_rx,
-                proc->nr_slot_rx,
-                harq_process->C);
-          LOG_D(PHY, "DLSCH %d received nok\n", DLSCH_id);
-        }
-        // We search only a reccuring OAI error that propagates all 0 packets with a 0 CRC, so we do the check only if the 2 first
-        // bytes of the CRC are 0 (it can be CRC16 or CRC24)
-        const int sz = A / 8;
-        if (b[DLSCH_id][sz] == 0 && b[DLSCH_id][sz + 1] == 0) {
-          int i = 0;
-          while (b[DLSCH_id][i] == 0 && i < sz)
-            i++;
-          if (i == sz) {
-            LOG_E(PHY,
-                  "received all 0 pdu, consider it false reception, even if the TS 38.212 7.2.1 says only we should attach the "
-                  "corresponding CRC, and nothing prevents to have a all 0 packet\n");
-            dlsch[DLSCH_id].last_iteration_cnt = dlsch[DLSCH_id].max_ldpc_iterations + 1;
-          }
+                "received all 0 pdu, consider it false reception, even if the TS 38.212 7.2.1 says only we should attach the "
+                "corresponding CRC, and nothing prevents to have a all 0 packet\n");
+          harq_process->decodeResult = false;
         }
       }
-
-      harq_process->status = SCH_IDLE;
-      harq_process->ack = 1;
-
-      // Same as gNB, set to max_ldpc_iterations is sufficient given that this variable is only used for checking for failure
-      dlsch[DLSCH_id].last_iteration_cnt = dlsch[DLSCH_id].max_ldpc_iterations;
-      LOG_D(PHY, "DLSCH %d received ok\n", DLSCH_id);
-    } else {
-      kpiStructure.nb_nack++;
-
-      harq_process->ack = 0;
-
-      // Same as gNB, set to max_ldpc_iterations + 1 is sufficient given that this variable is only used for checking for failure
-      dlsch[DLSCH_id].last_iteration_cnt = dlsch[DLSCH_id].max_ldpc_iterations + 1;
-      LOG_D(PHY, "DLSCH %d received nok\n", DLSCH_id);
     }
+
+    if (harq_process->decodeResult) {
+      LOG_D(PHY, "DLSCH received ok \n");
+      harq_process->status = SCH_IDLE;
+      dlsch->last_iteration_cnt = dlsch->max_ldpc_iterations;
+    } else {
+      LOG_D(PHY, "DLSCH received nok \n");
+      kpiStructure.nb_nack++;
+      dlsch->last_iteration_cnt = dlsch->max_ldpc_iterations + 1;
+    }
+
+    uint8_t dmrs_Type = dlsch_config->dmrsConfigType;
+    uint8_t nb_re_dmrs;
+    if (dmrs_Type == NFAPI_NR_DMRS_TYPE1)
+      nb_re_dmrs = 6 * dlsch_config->n_dmrs_cdm_groups;
+    else
+      nb_re_dmrs = 4 * dlsch_config->n_dmrs_cdm_groups;
+    uint16_t dmrs_length = get_num_dmrs(dlsch_config->dlDmrsSymbPos);
+    float Coderate = (float)dlsch->dlsch_config.targetCodeRate / 10240.0f;
+    LOG_D(PHY,
+          "%d.%d DLSCH Decoded, harq_pid %d, round %d, result: %d TBS %d (%d) G %d nb_re_dmrs %d length dmrs %d mcs %d Nl %d "
+          "nb_symb_sch %d "
+          "nb_rb %d Qm %d Coderate %f\n",
+          proc->frame_rx,
+          proc->nr_slot_rx,
+          harq_pid,
+          harq_process->DLround,
+          harq_process->decodeResult,
+          dlsch->dlsch_config.TBS,
+          dlsch->dlsch_config.TBS / 8,
+          G[DLSCH_id],
+          nb_re_dmrs,
+          dmrs_length,
+          dlsch->dlsch_config.mcs,
+          dlsch->Nl,
+          dlsch_config->number_symbols,
+          dlsch_config->number_rbs,
+          dlsch_config->qamModOrder,
+          Coderate);
+
   }
 
   return dlsch[0].last_iteration_cnt;

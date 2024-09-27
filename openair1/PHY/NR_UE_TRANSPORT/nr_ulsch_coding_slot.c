@@ -159,6 +159,11 @@ int nr_ulsch_encoding_slot(PHY_VARS_NR_UE *ue,
           nr_get_E(TB_encoding_params->G, TB_encoding_params->C, TB_encoding_params->Qm, TB_encoding_params->nb_layers, r);
       segment_encoding_params->output = harq_process->f + r_offset;
       r_offset += segment_encoding_params->E;
+
+      reset_meas(&segment_encoding_params->ts_interleave);
+      reset_meas(&segment_encoding_params->ts_rate_match);
+      reset_meas(&segment_encoding_params->ts_ldpc_encode);
+
     } // TB_encoding_params->C
   } // pusch_id
 
@@ -179,9 +184,19 @@ int nr_ulsch_encoding_slot(PHY_VARS_NR_UE *ue,
     nbJobs--;
   }
 
+  for (uint8_t pusch_id = 0; pusch_id < nb_ulsch; pusch_id++) {
+    nrLDPC_TB_encoding_parameters_t *TB_encoding_params = &TBs[pusch_id];
+    for (int r = 0; r < TB_encoding_params->C; r++) {
+      nrLDPC_segment_encoding_parameters_t *segment_encoding_params = &TB_encoding_params->segments[r];
+      merge_meas(&ue->phy_cpu_stats.cpu_time_stats[ULSCH_INTERLEAVING_STATS], &segment_encoding_params->ts_interleave);
+      merge_meas(&ue->phy_cpu_stats.cpu_time_stats[ULSCH_RATE_MATCHING_STATS], &segment_encoding_params->ts_rate_match);
+      merge_meas(&ue->phy_cpu_stats.cpu_time_stats[ULSCH_LDPC_ENCODING_STATS], &segment_encoding_params->ts_ldpc_encode);
+    }
+  }
+
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_LDPC_ENCODER_OPTIM, VCD_FUNCTION_OUT);
 
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_NR_UE_ULSCH_ENCODING, VCD_FUNCTION_OUT);
-  stop_meas_nr_ue_phy(ue, ULSCH_LDPC_ENCODING_STATS);
+  stop_meas_nr_ue_phy(ue, ULSCH_ENCODING_STATS);
   return 0;
 }

@@ -261,11 +261,11 @@ int decoder_xdma(nrLDPC_TB_decoding_parameters_t *TB_params,
   //==================================================================
   //  Xilinx FPGA LDPC decoding function -> nrLDPC_decoder_FPGA_PYM()
   //==================================================================
-  // start_meas(&phy_vars_gNB->ulsch_ldpc_decoding_stats);
+  start_meas(&TB_params->segments[0].ts_ldpc_decode);
   nrLDPC_decoder_FPGA_PYM((int8_t *)&multi_indata[0], (int8_t *)&multi_outdata[0], dec_conf);
   // printf("Xilinx FPGA -> CB = %d\n", harq_process->C);
   // nrLDPC_decoder_FPGA_PYM((int8_t *)&temp_multi_indata[0], (int8_t *)&multi_outdata[0], dec_conf);
-  // stop_meas(&phy_vars_gNB->ulsch_ldpc_decoding_stats);
+  stop_meas(&TB_params->segments[0].ts_ldpc_decode);
 
   *TB_params->processedSegments = 0;
   for (uint32_t r = 0; r < TB_params->C; r++) {
@@ -351,13 +351,13 @@ void nr_ulsch_FPGA_decoding_prepare_blocks(void *args)
     // -------------------------------------------------------------------------------------------
     // deinterleaving
     // -------------------------------------------------------------------------------------------
-    // start_meas(&phy_vars_gNB->ulsch_deinterleaving_stats);
+    start_meas(&segment_params->ts_deinterleave);
     nr_deinterleaving_ldpc(segment_params->E, Qm, harq_e, ulsch_llr + r_offset);
-    // stop_meas(&phy_vars_gNB->ulsch_deinterleaving_stats);
+    stop_meas(&segment_params->ts_deinterleave);
     // -------------------------------------------------------------------------------------------
     // dematching
     // -------------------------------------------------------------------------------------------
-    // start_meas(&phy_vars_gNB->ulsch_rate_unmatching_stats);
+    start_meas(&segment_params->ts_rate_unmatch);
     if (nr_rate_matching_ldpc_rx(tbslbrm,
                                  BG,
                                  Z,
@@ -370,13 +370,13 @@ void nr_ulsch_FPGA_decoding_prepare_blocks(void *args)
                                  F,
                                  Kr - F - 2 * Z)
         == -1) {
-      // stop_meas(&phy_vars_gNB->ulsch_rate_unmatching_stats);
+      stop_meas(&segment_params->ts_rate_unmatch);
       LOG_E(PHY, "ulsch_decoding.c: Problem in rate_matching\n");
       no_iteration_ldpc = max_ldpc_iterations + 1;
       arguments->no_iteration_ldpc = no_iteration_ldpc;
       return;
     } else {
-      // stop_meas(&phy_vars_gNB->ulsch_rate_unmatching_stats);
+      stop_meas(&segment_params->ts_rate_unmatch);
     }
 
     *segment_params->d_to_be_cleared = false;
