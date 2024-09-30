@@ -92,6 +92,7 @@ void capture_pdu_session_establishment_accept_msg(uint8_t *buffer, uint32_t msg_
   security_protected_plain_nas_5gs_msg_t sec_nas_msg;
   pdu_session_establishment_accept_msg_t psea_msg;
   uint8_t *curPtr = buffer;
+  // Security protected NAS header (7 bytes)
   sec_nas_hdr.epd = *curPtr++;
   sec_nas_hdr.sht = *curPtr++;
   uint32_t tmp;
@@ -99,6 +100,7 @@ void capture_pdu_session_establishment_accept_msg(uint8_t *buffer, uint32_t msg_
   sec_nas_hdr.mac = htonl(tmp);
   curPtr += sizeof(sec_nas_hdr.mac);
   sec_nas_hdr.sqn = *curPtr++;
+  // Security protected plain NAS message
   sec_nas_msg.epd = *curPtr++;
   sec_nas_msg.sht = *curPtr++;
   sec_nas_msg.msg_type = *curPtr++;
@@ -161,6 +163,7 @@ void capture_pdu_session_establishment_accept_msg(uint8_t *buffer, uint32_t msg_
         if (si6lla)
           LOG_E(NAS, "SMF's IPv6 link local address is not handled\n");
         curPtr++;
+        /* PDU Address */
         uint8_t *addr = psea_msg.pdu_addr_ie.pdu_addr_oct;
         if (psea_msg.pdu_addr_ie.pdu_type == PDU_SESSION_TYPE_IPV4) {
           for (int i = 0; i < IPv4_ADDRESS_LENGTH; ++i)
@@ -169,6 +172,8 @@ void capture_pdu_session_establishment_accept_msg(uint8_t *buffer, uint32_t msg_
           capture_ipv4_addr(&addr[0], ip, sizeof(ip));
           tun_config(1, ip, NULL, "oaitun_ue");
           setup_ue_ipv4_route(1, ip, "oaitun_ue");
+          LOG_I(NAS, "Received PDU Session Establishment Accept, UE IP: %u.%u.%u.%u\n",
+                addr[0], addr[1], addr[2], addr[3]);
         } else if (psea_msg.pdu_addr_ie.pdu_type == PDU_SESSION_TYPE_IPV6) {
           for (int i = 0; i < IPv6_INTERFACE_ID_LENGTH; ++i)
             addr[i] = *curPtr++;
