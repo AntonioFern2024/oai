@@ -21,13 +21,6 @@
 
 /*! \file PHY/CODING/nrLDPC_coding/nrLDPC_coding_segment/nrLDPC_coding_segment_encoder.c
 * \brief Top-level routines for implementing LDPC encoding of transport channels
-* \author H.Wang
-* \date 2018
-* \version 0.1
-* \company Eurecom
-* \email:
-* \note
-* \warning
 */
 
 #include "PHY/defs_gNB.h"

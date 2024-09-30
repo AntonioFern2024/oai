@@ -19,15 +19,8 @@
  *      contact@openairinterface.org
  */
 
-/*! \file PHY/NR_TRANSPORT/nr_ulsch_decoding.c
+/*! \file PHY/NR_TRANSPORT/nr_ulsch_decoding_slot.c
 * \brief Top-level routines for decoding  LDPC (ULSCH) transport channels from 38.212, V15.4.0 2018-12
-* \author Ahmed Hussein
-* \date 2019
-* \version 0.1
-* \company Fraunhofer IIS
-* \email: ahmed.hussein@iis.fraunhofer.de
-* \note
-* \warning
 */
 
 

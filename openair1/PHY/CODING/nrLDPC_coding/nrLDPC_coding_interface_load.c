@@ -19,16 +19,10 @@
  *      contact@openairinterface.org
  */
 
-/*! \file nrLDPC_load.c
- * \brief: load library implementing coding/decoding algorithms
- * \author Francois TABURET
- * \date 2020
- * \version 0.1
- * \company NOKIA BellLabs France
- * \email: francois.taburet@nokia-bell-labs.com
- * \note
- * \warning
+/*! \file openair1/PHY/CODING/nrLDPC_coding/nrLDPC_coding_interface_load.c
+ * \brief load library implementing coding/decoding algorithms
  */
+
 #define _GNU_SOURCE 
 #include <sys/types.h>
 #include <stdlib.h>

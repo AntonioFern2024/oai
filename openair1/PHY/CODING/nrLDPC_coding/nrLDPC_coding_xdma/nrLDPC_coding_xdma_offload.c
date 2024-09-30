@@ -36,6 +36,8 @@
 #include "xdma_diag.h"
 #include "nrLDPC_coding_xdma_offload.h"
 
+#include "common/utils/assertions.h"
+
 typedef unsigned long long U64;
 static struct option const long_opts[] = {{"device", required_argument, NULL, 'd'},
                                           {"address", required_argument, NULL, 'a'},
@@ -61,12 +63,6 @@ static struct option const long_opts[] = {{"device", required_argument, NULL, 'd
 #define htoll(x) __bswap_32(x)
 #define htols(x) __bswap_16(x)
 #endif
-
-#define FATAL                                                                                             \
-  do {                                                                                                    \
-    fprintf(stderr, "Error at line %d, file %s (%d) [%s]\n", __LINE__, __FILE__, errno, strerror(errno)); \
-    exit(1);                                                                                              \
-  } while (0)
 
 #define MAP_SIZE (32 * 1024UL)
 #define MAP_MASK (MAP_SIZE - 1)
@@ -675,15 +671,13 @@ void test_dma_init()
   uint32_t size2 = 24 * 1024 * 3;
 
   // printf("\n###################################################\n");
-  if ((fd = open(device2, O_RDWR | O_SYNC)) == -1)
-    FATAL;
+  AssertFatal((fd = open(device2, O_RDWR | O_SYNC)) != -1, "CHARACTER DEVICE %s OPEN FAILURE\n", device2);
   // printf("#     CHARACTER DEVICE %s OPENED.    #\n", device2);
   fflush(stdout);
 
   /* map one page */
   map_base = mmap(0, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-  if (map_base == (void*)-1)
-    FATAL;
+  AssertFatal(map_base != (void*)-1, "MEMORY MAP AT ADDRESS %p FAILED\n", map_base);
   // printf("#     MEMORY MAPPED AT ADDRESS %p.    #\n", map_base);
   // printf("###################################################\n\n");
 
@@ -711,8 +705,7 @@ void dma_reset()
   virt_addr = map_base + PCIE_OFF;
   *((uint32_t*)virt_addr) = 1;
 
-  if (munmap(map_base, MAP_SIZE) == -1)
-    FATAL;
+  AssertFatal(munmap(map_base, MAP_SIZE) != -1, "munmap failure");
   close(fd_enc_write);
   close(fd_enc_read);
   close(fd_dec_write);
@@ -720,15 +713,13 @@ void dma_reset()
   close(fd);
 
   // printf("\n###################################################\n");
-  if ((fd = open(device2, O_RDWR | O_SYNC)) == -1)
-    FATAL;
+  AssertFatal((fd = open(device2, O_RDWR | O_SYNC)) != -1, "CHARACTER DEVICE %s OPEN FAILURE\n", device2);
   // printf("#     CHARACTER DEVICE %s OPENED.    #\n", device2);
   fflush(stdout);
 
   /* map one page */
   map_base = mmap(0, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-  if (map_base == (void*)-1)
-    FATAL;
+  AssertFatal(map_base != (void*)-1, "MEMORY MAP AT ADDRESS %p FAILED\n", map_base);
   // printf("#     MEMORY MAPPED AT ADDRESS %p.    #\n", map_base);
   // printf("###################################################\n\n");
 

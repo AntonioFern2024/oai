@@ -19,6 +19,10 @@
  *      contact@openairinterface.org
  */
 
+/*! \file openair1/PHY/CODING/nrLDPC_coding/nrLDPC_coding_interface.h
+ * \brief interface for libraries implementing coding/decoding algorithms
+ */
+
 #include "PHY/defs_gNB.h"
 
 #ifndef __NRLDPC_CODING_INTERFACE__H__

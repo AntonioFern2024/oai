@@ -19,15 +19,8 @@
  *      contact@openairinterface.org
  */
 
-/*! \file PHY/LTE_TRANSPORT/dlsch_coding.c
+/*! \file PHY/NR_TRANSPORT/nr_dlsch_coding_slot.c
 * \brief Top-level routines for implementing LDPC-coded (DLSCH) transport channels from 38-212, 15.2
-* \author H.Wang
-* \date 2018
-* \version 0.1
-* \company Eurecom
-* \email:
-* \note
-* \warning
 */
 
 #include "PHY/defs_gNB.h"
@@ -54,7 +47,7 @@ int nr_dlsch_encoding_slot(PHY_VARS_gNB *gNB,
                            int frame,
                            uint8_t slot,
                            NR_DL_FRAME_PARMS *frame_parms,
-                           unsigned char **output,
+                           unsigned char *output,
                            time_stats_t *tinput,
                            time_stats_t *tprep,
                            time_stats_t *tparity,
@@ -79,7 +72,7 @@ int nr_dlsch_encoding_slot(PHY_VARS_gNB *gNB,
   nrLDPC_TB_encoding_parameters_t TBs[msgTx->num_pdsch_slot];
   nrLDPC_slot_encoding_parameters.TBs = TBs;
 
-  int max_num_segments = 0;
+  int num_segments = 0;
 
   for (int dlsch_id=0; dlsch_id<msgTx->num_pdsch_slot; dlsch_id++) {
 
@@ -173,12 +166,14 @@ int nr_dlsch_encoding_slot(PHY_VARS_gNB *gNB,
       LOG_E(PHY, "nr_segmentation.c: too many segments %d, B %d\n", nrLDPC_TB_encoding_parameters.C, B);
       return(-1);
     }
-    max_num_segments = max(max_num_segments, nrLDPC_TB_encoding_parameters.C);
+    num_segments += nrLDPC_TB_encoding_parameters.C;
 
     TBs[dlsch_id] = nrLDPC_TB_encoding_parameters;
   }
 
-  nrLDPC_segment_encoding_parameters_t segments[msgTx->num_pdsch_slot][max_num_segments];
+  nrLDPC_segment_encoding_parameters_t segments[num_segments];
+  int segments_offset = 0;
+  int dlsch_offset = 0;
 
   for (int dlsch_id = 0; dlsch_id < msgTx->num_pdsch_slot; dlsch_id++) {
     NR_gNB_DLSCH_t *dlsch = msgTx->dlsch[dlsch_id];
@@ -186,7 +181,7 @@ int nr_dlsch_encoding_slot(PHY_VARS_gNB *gNB,
     nfapi_nr_dl_tti_pdsch_pdu_rel15_t *rel15 = &harq->pdsch_pdu.pdsch_pdu_rel15;
 
     nrLDPC_TB_encoding_parameters_t nrLDPC_TB_encoding_parameters = TBs[dlsch_id];
-    nrLDPC_TB_encoding_parameters.segments = segments[dlsch_id];
+    nrLDPC_TB_encoding_parameters.segments = &segments[segments_offset];
 
     for (int r = 0; r < nrLDPC_TB_encoding_parameters.C; r++) {
       nrLDPC_TB_encoding_parameters.segments[r].c = harq->c[r];
@@ -227,7 +222,7 @@ int nr_dlsch_encoding_slot(PHY_VARS_gNB *gNB,
                                                              nrLDPC_TB_encoding_parameters.Qm,
                                                              rel15->nrOfLayers,
                                                              r);
-      nrLDPC_TB_encoding_parameters.segments[r].output = output[dlsch_id] + r_offset;
+      nrLDPC_TB_encoding_parameters.segments[r].output = &output[dlsch_offset + r_offset];
       r_offset += nrLDPC_TB_encoding_parameters.segments[r].E;
 
       reset_meas(&nrLDPC_TB_encoding_parameters.segments[r].ts_interleave);
@@ -237,6 +232,8 @@ int nr_dlsch_encoding_slot(PHY_VARS_gNB *gNB,
     }
 
     TBs[dlsch_id] = nrLDPC_TB_encoding_parameters;
+    segments_offset += nrLDPC_TB_encoding_parameters.C;
+    dlsch_offset += rel15->rbSize * NR_SYMBOLS_PER_SLOT * NR_NB_SC_PER_RB * rel15->qamModOrder[0] * rel15->nrOfLayers;
   }
   notifiedFIFO_t nf;
   initNotifiedFIFO(&nf);

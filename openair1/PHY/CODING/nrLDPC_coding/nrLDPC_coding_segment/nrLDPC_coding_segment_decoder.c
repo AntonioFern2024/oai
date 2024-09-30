@@ -20,14 +20,7 @@
  */
 
 /*! \file PHY/CODING/nrLDPC_coding/nrLDPC_coding_segment/nrLDPC_coding_segment_decoder.c
-* \brief Top-level routines for decoding  LDPC transport channels
-* \author Ahmed Hussein
-* \date 2019
-* \version 0.1
-* \company Fraunhofer IIS
-* \email: ahmed.hussein@iis.fraunhofer.de
-* \note
-* \warning
+* \brief Top-level routines for decoding LDPC transport channels
 */
 
 

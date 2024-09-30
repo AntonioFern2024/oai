@@ -20,12 +20,8 @@
  */
 
 /*! \file PHY/CODING/nrLDPC_coding/nrLDPC_coding_xdma/nrLDPC_coding_xdma.c
- * \brief Top-level routines for decoding  LDPC (ULSCH) transport channels
- * from 38.212, V15.4.0 2018-12 \author Ahmed Hussein \date 2019 \version 0.1
- * \company Fraunhofer IIS
- * \email: ahmed.hussein@iis.fraunhofer.de
- * \note
- * \warning
+ * \brief Top-level routines for decoding LDPC (ULSCH) transport channels
+ * decoding implemented using a FEC IP core on FPGA through XDMA driver
  */
 
 // [from gNB coding]

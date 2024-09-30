@@ -519,8 +519,7 @@ int main(int argc, char **argv)
 	if (input_fd == NULL) {
     if (gNB->nrLDPC_coding_interface_flag) {
       msgDataTx.num_pdsch_slot = 1;
-      unsigned char *p_output = output;
-	    nr_dlsch_encoding_slot(gNB, &msgDataTx, frame, slot, frame_parms, &p_output, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+	    nr_dlsch_encoding_slot(gNB, &msgDataTx, frame, slot, frame_parms, output, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
     } else {
 	    nr_dlsch_encoding(gNB, frame, slot, &dlsch->harq_process, frame_parms, output, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
     }
