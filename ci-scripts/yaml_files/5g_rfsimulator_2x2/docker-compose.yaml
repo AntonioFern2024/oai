@@ -120,7 +120,7 @@ services:
              - /dev/net/tun:/dev/net/tun
         volumes:
             - ../../../targets/PROJECTS/GENERIC-NR-5GC/CONF/uecap_ports2.xml:/opt/oai-nr-ue/etc/uecap.xml
-            - ../../conf_files/nrue.uicc.conf:/opt/oai-nr-ue/etc/nr-ue.conf
+            - ../../conf_files/nrue.sa.uicc.conf:/opt/oai-nr-ue/etc/nr-ue.conf
         healthcheck:
             test: /bin/bash -c "pgrep nr-uesoftmodem"
             interval: 10s

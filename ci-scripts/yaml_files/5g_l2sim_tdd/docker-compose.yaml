@@ -135,7 +135,7 @@ services:
         devices:
              - /dev/net/tun:/dev/net/tun
         volumes:
-            - ../../conf_files/nrue.band78.106prb.l2sim.conf:/opt/oai-nr-ue/etc/nr-ue.conf
+            - ../../conf_files/nrue.sa.band78.106prb.l2sim.conf:/opt/oai-nr-ue/etc/nr-ue.conf
             - ../../../openair1/SIMULATION/LTE_PHY/BLER_SIMULATIONS/AWGN/AWGN_results:/opt/oai-nr-ue/openair1/SIMULATION/LTE_PHY/BLER_SIMULATIONS/AWGN/AWGN_results
         depends_on:
             - oai-gnb
