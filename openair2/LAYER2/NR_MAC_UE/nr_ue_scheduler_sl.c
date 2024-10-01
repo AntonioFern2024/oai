@@ -86,9 +86,8 @@ static void sl_determine_slot_bitmap(sl_nr_ue_mac_params_t *sl_mac, int ue_id)
         sl_mac->sl_slot_bitmap);
 }
 
-/* This function determines the number of sidelink slots in 1024 frames - DFN cycle
- * which can be used for determining reserved slots and REsource pool slots according to bitmap.
- * Sidelink slots are the uplink and mixed slots with sidelink support except the SSB slots.
+/* This function determines the number of sidelink slots in 1024 frames (DFN cycle)
+ * which can be used for determining reserved slots and resource pool slots according to bitmap.
  */
 static uint32_t sl_determine_num_sidelink_slots(sl_nr_ue_mac_params_t *sl_mac, int ue_id, uint16_t *N_SSB_16frames)
 {
@@ -125,13 +124,6 @@ static uint32_t sl_determine_num_sidelink_slots(sl_nr_ue_mac_params_t *sl_mac, i
   return N_SL_SLOTS;
 }
 
-/**
- * DETERMINE IF SLOT IS MARKED AS SSB SLOT
- * ACCORDING TO THE SSB TIME ALLOCATION PARAMETERS.
- * sl_numSSB_withinPeriod - NUM SSBS in 16frames
- * sl_timeoffset_SSB - time offset for first SSB at start of 16 frames cycle
- * sl_timeinterval - distance in slots between 2 SSBs
- */
 uint8_t sl_determine_if_SSB_slot(uint16_t frame, uint16_t slot, uint16_t slots_per_frame, sl_bch_params_t *sl_bch)
 {
   uint16_t frame_16 = frame % SL_NR_SSB_REPETITION_IN_FRAMES;
@@ -163,7 +155,8 @@ uint8_t sl_determine_if_SSB_slot(uint16_t frame, uint16_t slot, uint16_t slots_p
   return 0;
 }
 
-static uint8_t sl_psbch_scheduler(sl_nr_ue_mac_params_t *sl_mac_params, int ue_id, int frame, int slot)
+// Refactored function name for readability
+static uint8_t schedule_psbch(sl_nr_ue_mac_params_t *sl_mac_params, int ue_id, int frame, int slot)
 {
   uint8_t config_type = 0;
   uint8_t is_psbch_rx_slot = 0;
@@ -191,11 +184,7 @@ static uint8_t sl_psbch_scheduler(sl_nr_ue_mac_params_t *sl_mac_params, int ue_i
   return config_type;
 }
 
-/*
- * This function calculates the indices based on the new timing (frame,slot)
- * acquired by the UE.
- * NUM SSB, SLOT_SSB needs to be calculated based on current timing
- */
+// Adjust PSBCH and SSB indices based on the new timing
 static void adjust_ssb_timing(sl_nr_ue_mac_params_t *sl_mac, int ue_id, int frame, int slot, int slots_per_frame)
 {
   uint8_t elapsed_slots = sl_get_elapsed_slots(slot, sl_mac->sl_slot_bitmap);
@@ -223,7 +212,8 @@ static void adjust_ssb_timing(sl_nr_ue_mac_params_t *sl_mac, int ue_id, int fram
   }
 }
 
-static void sl_actions_after_new_timing(sl_nr_ue_mac_params_t *sl_mac, int ue_id, int frame, int slot)
+// Refactored function name for readability
+static void update_indices_post_timing(sl_nr_ue_mac_params_t *sl_mac, int ue_id, int frame, int slot)
 {
   uint8_t mu = sl_mac->sl_phy_config.sl_config_req.sl_bwp_config.sl_scs;
   uint8_t slots_per_frame = nr_slots_per_frame[mu];
