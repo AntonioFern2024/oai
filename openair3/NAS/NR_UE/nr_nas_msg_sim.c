@@ -255,7 +255,7 @@ int mm_msg_encode(MM_msg *mm_msg, uint8_t *buffer, uint32_t len)
   len -= header_result;
 
   switch (msg_type) {
-    case REGISTRATION_REQUEST:
+    case FGS_REGISTRATION_REQUEST:
       encode_result = encode_registration_request(&mm_msg->registration_request, buffer, len);
       break;
     case FGS_IDENTITY_RESPONSE:
@@ -517,14 +517,14 @@ void generateRegistrationRequest(as_nas_info_t *initialNasMsg, nr_ue_nas_t *nas)
   // set header
   mm_msg->header.ex_protocol_discriminator = FGS_MOBILITY_MANAGEMENT_MESSAGE;
   mm_msg->header.security_header_type = PLAIN_5GS_MSG;
-  mm_msg->header.message_type = REGISTRATION_REQUEST;
+  mm_msg->header.message_type = FGS_REGISTRATION_REQUEST;
 
   // set registration request
   mm_msg->registration_request.protocoldiscriminator = FGS_MOBILITY_MANAGEMENT_MESSAGE;
   size += 1;
   mm_msg->registration_request.securityheadertype = PLAIN_5GS_MSG;
   size += 1;
-  mm_msg->registration_request.messagetype = REGISTRATION_REQUEST;
+  mm_msg->registration_request.messagetype = FGS_REGISTRATION_REQUEST;
   size += 1;
   mm_msg->registration_request.fgsregistrationtype = INITIAL_REGISTRATION;
   mm_msg->registration_request.naskeysetidentifier.naskeysetidentifier = 1;
@@ -797,7 +797,7 @@ static void generateRegistrationComplete(nr_ue_nas_t *nas,
   sp_msg->plain.mm_msg.registration_complete.securityheadertype = PLAIN_5GS_MSG;
   sp_msg->plain.mm_msg.registration_complete.sparehalfoctet = 0;
   length += 1;
-  sp_msg->plain.mm_msg.registration_complete.messagetype = REGISTRATION_COMPLETE;
+  sp_msg->plain.mm_msg.registration_complete.messagetype = FGS_REGISTRATION_COMPLETE;
   length += 1;
 
   if (sortransparentcontainer) {
@@ -1338,7 +1338,7 @@ void *nas_nrue(void *args_p)
 
         int msg_type = get_msg_type(pdu_buffer, pdu_length);
 
-        if (msg_type == REGISTRATION_ACCEPT) {
+        if (msg_type == FGS_REGISTRATION_ACCEPT) {
           handle_registration_accept(nas, pdu_buffer, pdu_length);
         } else if (msg_type == FGS_PDU_SESSION_ESTABLISHMENT_ACC) {
           capture_pdu_session_establishment_accept_msg(pdu_buffer, pdu_length);
@@ -1406,8 +1406,8 @@ void *nas_nrue(void *args_p)
         /* special cases accepted without protection */
         if (security_state == NAS_SECURITY_UNPROTECTED) {
           int msg_type = get_msg_type(pdu_buffer, pdu_length);
-          /* for the moment, only FGS_DEREGISTRATION_ACCEPT is accepted */
-          if (msg_type == FGS_DEREGISTRATION_ACCEPT)
+          /* for the moment, only FGS_DEREGISTRATION_ACCEPT_UE_ORIGINATING is accepted */
+          if (msg_type == FGS_DEREGISTRATION_ACCEPT_UE_ORIGINATING)
             security_state = NAS_SECURITY_INTEGRITY_PASSED;
         }
 
@@ -1431,10 +1431,10 @@ void *nas_nrue(void *args_p)
           case FGS_DOWNLINK_NAS_TRANSPORT:
             decodeDownlinkNASTransport(&initialNasMsg, pdu_buffer);
             break;
-          case REGISTRATION_ACCEPT:
+          case FGS_REGISTRATION_ACCEPT:
             handle_registration_accept(nas, pdu_buffer, pdu_length);
             break;
-          case FGS_DEREGISTRATION_ACCEPT:
+          case FGS_DEREGISTRATION_ACCEPT_UE_ORIGINATING:
             LOG_I(NAS, "received deregistration accept\n");
             break;
           case FGS_PDU_SESSION_ESTABLISHMENT_ACC:
