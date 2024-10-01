@@ -22,6 +22,10 @@
 #include "mac_defs.h"
 #include "mac_proto.h"
 
+// Define constants to avoid magic numbers
+#define SLOTS_PER_FRAME_10_MS 10
+#define NR_FRAME_CYCLE_1024 1024
+
 static uint16_t sl_adjust_ssb_indices(sl_ssb_timealloc_t *ssb_timealloc, uint32_t slot_in_16frames, uint16_t *ssb_slot_ptr)
 {
   uint16_t ssb_slot = ssb_timealloc->sl_TimeOffsetSSB;
