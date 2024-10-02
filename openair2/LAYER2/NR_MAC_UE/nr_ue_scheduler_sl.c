@@ -23,7 +23,7 @@
 #include "mac_proto.h"
 
 // Define constants to avoid magic numbers
-#define SLOTS_PER_FRAME_10_MS 10
+#define SUBFRAMES_PER_FRAME 10
 #define NR_FRAME_CYCLE_1024 1024
 
 static uint16_t sl_adjust_ssb_indices(const sl_ssb_timealloc_t *ssb_timealloc, uint32_t slot_in_16frames, uint16_t *ssb_slot_ptr)
@@ -60,7 +60,7 @@ static void sl_determine_slot_bitmap(sl_nr_ue_mac_params_t *sl_mac, int ue_id)
   sl_nr_phy_config_request_t *sl_cfg = &sl_mac->sl_phy_config.sl_config_req;
 
   uint8_t sl_scs = sl_cfg->sl_bwp_config.sl_scs;
-  uint8_t num_slots_per_frame = SLOTS_PER_FRAME_10_MS * (1 << sl_scs);
+  uint8_t num_slots_per_frame = slots_per_subframe * SUBFRAMES_PER_FRAME;
   uint8_t slot_type = 0;
   for (int i = 0; i < num_slots_per_frame; i++) {
     slot_type = sl_nr_ue_slot_select(sl_cfg, i, TDD);
