@@ -352,6 +352,8 @@ void init_gNB_Tpool(int inst) {
   // ULSCH decoder result FIFO
   initNotifiedFIFO(&gNB->respPuschSymb);
   initNotifiedFIFO(&gNB->respDecode);
+  // PUSCH channel estimation result FIFO
+  initNotifiedFIFO(&gNB->respPuschAarx);
 
   // L1 RX result FIFO
   initNotifiedFIFO(&gNB->resp_L1);
