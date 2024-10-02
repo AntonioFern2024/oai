@@ -69,6 +69,11 @@ static void sl_determine_slot_bitmap(sl_nr_ue_mac_params_t *sl_mac, int ue_id)
       sl_mac->sl_slot_bitmap |= (1 << i);
     }
   }
+  
+  // Free existing memory for future TTIs to avoid memory leaks
+  if (sl_mac->future_ttis != NULL) {
+    free(sl_mac->future_ttis);
+  }
 
   sl_mac->future_ttis = calloc(num_slots_per_frame, sizeof(sl_stored_tti_req_t));
 
