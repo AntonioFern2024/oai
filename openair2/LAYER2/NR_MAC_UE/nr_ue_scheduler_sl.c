@@ -96,13 +96,13 @@ static uint32_t sl_determine_num_sidelink_slots(sl_nr_ue_mac_params_t *sl_mac, i
   *N_SSB_16frames = 0;
 
   if (sl_mac->rx_sl_bch.status) {
-    sl_ssb_timealloc_t *ssb_timealloc = &sl_mac->rx_sl_bch.ssb_time_alloc;
+    const sl_ssb_timealloc_t *ssb_timealloc = &sl_mac->rx_sl_bch.ssb_time_alloc;
     *N_SSB_16frames += ssb_timealloc->sl_NumSSB_WithinPeriod;
     LOG_D(NR_MAC, "RX SSB Slots:%d\n", *N_SSB_16frames);
   }
 
   if (sl_mac->tx_sl_bch.status) {
-    sl_ssb_timealloc_t *ssb_timealloc = &sl_mac->tx_sl_bch.ssb_time_alloc;
+    const sl_ssb_timealloc_t *ssb_timealloc = &sl_mac->tx_sl_bch.ssb_time_alloc;
     *N_SSB_16frames += ssb_timealloc->sl_NumSSB_WithinPeriod;
     LOG_D(NR_MAC, "TX SSB Slots:%d\n", *N_SSB_16frames);
   }
