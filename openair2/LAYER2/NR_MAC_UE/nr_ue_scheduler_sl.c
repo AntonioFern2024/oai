@@ -50,16 +50,8 @@ static uint16_t sl_adjust_ssb_indices(const sl_ssb_timealloc_t *ssb_timealloc, u
   return numssb;
 }
 
-static uint8_t sl_get_elapsed_slots(uint32_t slot, uint32_t sl_slot_bitmap)
-{
-  uint8_t elapsed_slots = 0;
-
-  for (int i = 0; i < slot; i++) {
-    if (sl_slot_bitmap & (1 << i))
-      elapsed_slots++;
-  }
-
-  return elapsed_slots;
+static uint8_t sl_get_elapsed_slots(uint32_t slot, uint32_t sl_slot_bitmap){
+  return __builtin_popcount(sl_slot_bitmap & ((1 << slot) - 1));
 }
 
 static void sl_determine_slot_bitmap(sl_nr_ue_mac_params_t *sl_mac, int ue_id)
