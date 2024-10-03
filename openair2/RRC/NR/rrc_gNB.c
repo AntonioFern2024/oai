@@ -2157,16 +2157,16 @@ static pdusession_level_qos_parameter_t *get_qos_characteristics(const int qfi, 
   return NULL;
 }
 
-/* \bref return F1AP QoS characteristics based on Qos flow parameters */
-static f1ap_qos_characteristics_t get_qos_char_from_qos_flow_param(const pdusession_level_qos_parameter_t *qos_param)
+/* \bref return qos characteristics based on Qos flow parameters */
+static qos_characteristics_t get_qos_char_from_qos_flow_param(const pdusession_level_qos_parameter_t *qos_param)
 {
-  f1ap_qos_characteristics_t qos_char = {0};
-  if (qos_param->fiveQI_type == dynamic) {
-    qos_char.qos_type = dynamic;
+  qos_characteristics_t qos_char = {0};
+  if (qos_param->fiveQI_type == dynamic_5qi) {
+    qos_char.qos_type = dynamic_5qi;
     qos_char.dynamic.fiveqi = qos_param->fiveQI;
     qos_char.dynamic.qos_priority_level = qos_param->qos_priority;
   } else {
-    qos_char.qos_type = non_dynamic;
+    qos_char.qos_type = non_dynamic_5qi;
     qos_char.non_dynamic.fiveqi = qos_param->fiveQI;
     qos_char.non_dynamic.qos_priority_level = qos_param->qos_priority;
   }
@@ -2204,10 +2204,31 @@ static int fill_drb_to_be_setup_from_e1_resp(const gNB_RRC_INST *rrc,
       for (int j = 0; j < nb_qos_flows; j++) {
         drb->drb_info.flows_mapped_to_drb[j].qfi = drb_config->qosFlows[j].qfi;
         pdusession_level_qos_parameter_t *in_qos_char = get_qos_characteristics(drb_config->qosFlows[j].qfi, RRC_pduSession);
-        drb->drb_info.flows_mapped_to_drb[j].qos_params.qos_characteristics = get_qos_char_from_qos_flow_param(in_qos_char);
+        qos_flow_level_qos_parameters_t *qos_params = &drb->drb_info.flows_mapped_to_drb[j].qos_params;
+        qos_characteristics_t *qos_char = &qos_params->qos_characteristics;
+
+        if (in_qos_char->fiveQI_type == dynamic_5qi) {
+          qos_char->qos_type = dynamic_5qi;
+          qos_char->dynamic.fiveqi = in_qos_char->fiveQI;
+          qos_char->dynamic.qos_priority_level = in_qos_char->qos_priority;
+        } else {
+          qos_char->qos_type = non_dynamic_5qi;
+          qos_char->non_dynamic.fiveqi = in_qos_char->fiveQI;
+          qos_char->non_dynamic.qos_priority_level = in_qos_char->qos_priority;
+        }
+
+        gbr_qos_flow_information_t *gbr_qos_info = &in_qos_char->gbr_qos_flow_level_qos_params;
+        asn1cCalloc(qos_params->gbr_qos_flow_info, gbr_info);
+        gbr_info->gbr_dl = gbr_qos_info->gbr_dl;
+        gbr_info->gbr_ul = gbr_qos_info->gbr_ul;
+        gbr_info->mbr_dl = gbr_qos_info->mbr_dl;
+        gbr_info->mbr_ul = gbr_qos_info->mbr_ul;
       }
+
       /* the DRB QoS parameters: we just reuse the ones from the first flow */
-      drb->drb_info.drb_qos = drb->drb_info.flows_mapped_to_drb[0].qos_params;
+      get_drb_characteristics((qos_flow_to_setup_t *)drb->drb_info.flows_mapped_to_drb,
+                              drb->drb_info.flows_to_be_setup_length,
+                              &drb->drb_info.drb_qos);
 
       /* pass NSSAI info to MAC */
       drb->nssai = RRC_pduSession->param.nssai;
