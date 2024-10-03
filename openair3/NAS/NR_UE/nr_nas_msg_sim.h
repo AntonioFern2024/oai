@@ -23,24 +23,28 @@
  * \brief simulator for nr nas message
  * \author Yoshio INOUE, Masayuki HARADA
  * \email yoshio.inoue@fujitsu.com,masayuki.harada@fujitsu.com
+ * \protocol 5GS (5GMM and 5GSM)
  * \date 2020
  * \version 0.1
  */
 
-
-
 #ifndef __NR_NAS_MSG_SIM_H__
 #define __NR_NAS_MSG_SIM_H__
 
-#include "RegistrationRequest.h"
-#include "FGSIdentityResponse.h"
-#include "FGSAuthenticationResponse.h"
-#include "FGSNASSecurityModeComplete.h"
-#include "FGSDeregistrationRequestUEOriginating.h"
-#include "RegistrationComplete.h"
-#include "as_message.h"
-#include "FGSUplinkNasTransport.h"
+#include <common/utils/assertions.h>
 #include <openair3/UICC/usim_interface.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include "FGSAuthenticationResponse.h"
+#include "FGSDeregistrationRequestUEOriginating.h"
+#include "FGSIdentityResponse.h"
+#include "FGSMobileIdentity.h"
+#include "FGSNASSecurityModeComplete.h"
+#include "FGSUplinkNasTransport.h"
+#include "RegistrationComplete.h"
+#include "RegistrationRequest.h"
+#include "as_message.h"
+#include "openair3/NAS/COMMON/5GS/NAS_FGS_common.h"
 #include "secu_defs.h"
 
 #define PLAIN_5GS_MSG                                      0b0000
@@ -116,21 +120,6 @@ typedef enum fgs_protocol_discriminator_e {
   FGS_SESSION_MANAGEMENT_MESSAGE =    0x2E,
 } fgs_protocol_discriminator_t;
 
-
-typedef struct {
-  uint8_t ex_protocol_discriminator;
-  uint8_t security_header_type;
-  uint8_t message_type;
-} mm_msg_header_t;
-
-/* Structure of security protected header */
-typedef struct {
-  uint8_t protocol_discriminator;
-  uint8_t security_header_type;
-  uint32_t message_authentication_code;
-  uint8_t sequence_number;
-} fgs_nas_message_security_header_t;
-
 typedef union {
   mm_msg_header_t                        header;
   registration_request_msg               registration_request;
@@ -141,8 +130,6 @@ typedef union {
   registration_complete_msg              registration_complete;
   fgs_uplink_nas_transport_msg           uplink_nas_transport;
 } MM_msg;
-
-
 
 typedef struct {
   MM_msg mm_msg;    /* 5GS Mobility Management messages */
@@ -172,20 +159,6 @@ typedef struct {
     } security_protected_nas_msg_header_t;
   } choice;
 } nas_msg_header_t;
-
-typedef struct {
-  uint8_t ex_protocol_discriminator;
-  uint8_t pdu_session_id;
-  uint8_t PTI;
-  uint8_t message_type;
-} fgs_sm_nas_msg_header_t;
-
-typedef struct {
-    mm_msg_header_t         plain_nas_msg_header;
-    uint8_t                 payload_container_type;
-    uint16_t                payload_container_length;
-    fgs_sm_nas_msg_header_t sm_nas_msg_header;
-} dl_nas_transport_t;
 
 nr_ue_nas_t *get_ue_nas_info(module_id_t module_id);
 void generateRegistrationRequest(as_nas_info_t *initialNasMsg, nr_ue_nas_t *nas);

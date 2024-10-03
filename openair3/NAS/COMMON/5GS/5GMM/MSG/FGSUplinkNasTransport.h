@@ -19,48 +19,55 @@
  *      contact@openairinterface.org
  */
 
-/*! \file FGSAuthenticationResponse.h
+/*! \file FGSUplinkNasTransport.h
 
-\brief authentication response procedures
+\brief uplink nas transport procedures
 \author Yoshio INOUE, Masayuki HARADA
 \email: yoshio.inoue@fujitsu.com,masayuki.harada@fujitsu.com
 \date 2020
 \version 0.1
 */
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <stdint.h>
-
 #include "ExtendedProtocolDiscriminator.h"
+#include "MessageType.h"
+#include "OctetString.h"
 #include "SecurityHeaderType.h"
 #include "SpareHalfOctet.h"
-#include "MessageType.h"
-#include "AuthenticationResponseParameter.h"
 
-#ifndef FGS_AUTHENTICATION_RESPONSE_H_
-#define FGS_AUTHENTICATION_RESPONSE_H_
-
-#define AUTHENTICATION_RESPONSE_PARAMETER_IEI     0x2d
+#ifndef FGS_UPLINK_NAS_TRANSPORT_H_
+#define FGS_UPLINK_NAS_TRANSPORT_H_
 
 /*
- * Message name: Identity response
- * Description: This message is sent by the UE to the AMF to provide the requested identity. See table 8.2.22.1.
+ * Message name: uplink nas transpaort
+ * Description: The UL NAS TRANSPORT message transports message payload and associated information to the AMF. See table 8.2.10.1.1.
  * Significance: dual
- * Direction: UE to AMF
+ * Direction: UE to network
  */
 
-typedef struct fgs_authentication_response_msg_tag {
+typedef struct PayloadContainerType_tag {
+  uint8_t iei: 4;
+  uint8_t type: 4;
+} PayloadContainerType;
+typedef struct FGSPayloadContainer_tag {
+  OctetString payloadcontainercontents;
+} FGSPayloadContainer;
+
+typedef struct fgs_uplink_nas_transport_msg_tag {
   /* Mandatory fields */
-  ExtendedProtocolDiscriminator           protocoldiscriminator;
-  SecurityHeaderType                      securityheadertype:4;
-  SpareHalfOctet                          sparehalfoctet:4;
-  MessageType                             messagetype;
-  AuthenticationResponseParameter         authenticationresponseparameter;
-} fgs_authentication_response_msg;
+  ExtendedProtocolDiscriminator protocoldiscriminator;
+  SecurityHeaderType securityheadertype: 4;
+  SpareHalfOctet sparehalfoctet: 4;
+  MessageType messagetype;
+  PayloadContainerType payloadcontainertype;
+  FGSPayloadContainer fgspayloadcontainer;
+  /* Optional fields */
+  uint16_t pdusessionid;
+  uint8_t requesttype;
+  OctetString snssai;
+  OctetString dnn;
+} fgs_uplink_nas_transport_msg;
 
-int encode_fgs_authentication_response(fgs_authentication_response_msg *authentication_response, uint8_t *buffer, uint32_t len);
+int encode_fgs_uplink_nas_transport(fgs_uplink_nas_transport_msg *fgs_security_mode_comp, uint8_t *buffer, uint32_t len);
 
-#endif /* ! defined(FGS_AUTHENTICATION_RESPONSE_H_) */
-
-
+#endif /* ! defined(FGS_UPLINK_NAS_TRANSPORT_H_) */

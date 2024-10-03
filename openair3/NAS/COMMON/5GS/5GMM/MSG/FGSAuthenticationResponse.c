@@ -19,43 +19,37 @@
  *      contact@openairinterface.org
  */
 
+/*! \file FGSAuthenticationResponse.c
+
+\brief authentication response procedures
+\author Yoshio INOUE, Masayuki HARADA
+\email: yoshio.inoue@fujitsu.com,masayuki.harada@fujitsu.com
+\date 2020
+\version 0.1
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 
+#include "nas_log.h"
 
-#include "TLVEncoder.h"
-#include "TLVDecoder.h"
-#include "RegistrationComplete.h"
-#include "SORTransparentContainer.h"
+#include "FGSAuthenticationResponse.h"
 
-int decode_registration_complete(registration_complete_msg *registration_complete, uint8_t *buffer, uint32_t len)
-{
-  uint32_t decoded = 0;
-  int decoded_result = 0;
-
-  /* Decoding mandatory fields */
-  if ((decoded_result = decode_sor_transparent_container(&registration_complete->sortransparentcontainer, 0, buffer + decoded, len - decoded)) < 0)
-    return decoded_result;
-  else
-    decoded += decoded_result;
-
-  return decoded;
-}
-
-int encode_registration_complete(registration_complete_msg *registration_complete, uint8_t *buffer, uint32_t len)
+int encode_fgs_authentication_response(fgs_authentication_response_msg *authentication_response, uint8_t *buffer, uint32_t len)
 {
   int encoded = 0;
   int encode_result = 0;
 
-  if ((encode_result =
-         encode_sor_transparent_container(&registration_complete->sortransparentcontainer, 0,
-                                      buffer + encoded, len - encoded)) < 0)        //Return in case of error
+  if ((encode_result = encode_authentication_response_parameter(&authentication_response->authenticationresponseparameter,
+                                                                AUTHENTICATION_RESPONSE_PARAMETER_IEI,
+                                                                buffer + encoded,
+                                                                len - encoded))
+      < 0) // Return in case of error
     return encode_result;
   else
     encoded += encode_result;
 
   return encoded;
 }
-

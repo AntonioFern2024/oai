@@ -19,38 +19,35 @@
  *      contact@openairinterface.org
  */
 
-/*! \file FGSAuthenticationResponse.c
+/*! \file RegistrationRequest.c
+ * \brief registration request procedures for gNB
+ * \author Yoshio INOUE, Masayuki HARADA
+ * \email yoshio.inoue@fujitsu.com,masayuki.harada@fujitsu.com
+ * \date 2020
+ * \version 0.1
+ */
 
-\brief authentication response procedures
-\author Yoshio INOUE, Masayuki HARADA
-\email: yoshio.inoue@fujitsu.com,masayuki.harada@fujitsu.com
-\date 2020
-\version 0.1
-*/
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "FGSDeregistrationRequestUEOriginating.h"
 #include <stdint.h>
 
-#include "nas_log.h"
-
-#include "FGSAuthenticationResponse.h"
-
-
-int encode_fgs_authentication_response(fgs_authentication_response_msg *authentication_response, uint8_t *buffer, uint32_t len)
+int encode_fgs_deregistration_request_ue_originating(fgs_deregistration_request_ue_originating_msg *drr,
+                                                     uint8_t *buffer,
+                                                     uint32_t len)
 {
   int encoded = 0;
-  int encode_result = 0;
+  FGSDeregistrationType *dt = &drr->deregistrationtype;
+  *(buffer + encoded) = ((dt->switchoff & 0x1) << 7) | ((dt->reregistration_required & 0x1) << 6) | ((dt->access_type & 0x3) << 4);
 
+  int encode_result;
+  if ((encode_result = encode_nas_key_set_identifier(&drr->naskeysetidentifier, 0, buffer + encoded, len - encoded)) < 0)
+    return encode_result;
 
-  if ((encode_result =
-         encode_authentication_response_parameter(&authentication_response->authenticationresponseparameter,
-           AUTHENTICATION_RESPONSE_PARAMETER_IEI, buffer + encoded, len - encoded)) < 0)        //Return in case of error
+  encoded++;
+
+  if ((encode_result = encode_5gs_mobile_identity(&drr->fgsmobileidentity, 0, buffer + encoded, len - encoded)) < 0)
     return encode_result;
   else
     encoded += encode_result;
 
   return encoded;
 }
-

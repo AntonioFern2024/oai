@@ -21,7 +21,6 @@
 
 #include "PduSessionEstablishmentAccept.h"
 #include "common/utils/LOG/log.h"
-#include "nr_nas_msg_sim.h"
 #include "common/utils/tun_if.h"
 #include "openair2/SDAP/nr_sdap/nr_sdap.h"
 
@@ -57,9 +56,8 @@ static int capture_ipv6_addr(const uint8_t *addr, char *ip, size_t len)
 
 typedef struct {
   int iei;
-  const char* description;
+  const char *description;
 } iei_string_map_t;
-
 
 iei_string_map_t iei_map[] = {{IEI_5GSM_CAUSE, "5GSM cause"},
                               {IEI_PDU_ADDRESS, "PDU address"},
@@ -88,30 +86,32 @@ static const char *get_iei_description(int iei)
 
 void capture_pdu_session_establishment_accept_msg(uint8_t *buffer, uint32_t msg_length)
 {
-  security_protected_nas_5gs_msg_t       sec_nas_hdr;
-  security_protected_plain_nas_5gs_msg_t sec_nas_msg;
+  fgs_nas_message_security_header_t sec_nas_hdr;
+  fgs_nas_security_protected_plain_msg_t sec_nas_msg;
   pdu_session_establishment_accept_msg_t psea_msg;
   uint8_t *curPtr = buffer;
   // Security protected NAS header (7 bytes)
-  sec_nas_hdr.epd = *curPtr++;
-  sec_nas_hdr.sht = *curPtr++;
+  sec_nas_hdr.protocol_discriminator = *curPtr++;
+  sec_nas_hdr.security_header_type = *curPtr++;
   uint32_t tmp;
   memcpy(&tmp, buffer, sizeof(tmp));
-  sec_nas_hdr.mac = htonl(tmp);
-  curPtr += sizeof(sec_nas_hdr.mac);
-  sec_nas_hdr.sqn = *curPtr++;
+  sec_nas_hdr.message_authentication_code = htonl(tmp);
+  curPtr += sizeof(sec_nas_hdr.message_authentication_code);
+  sec_nas_hdr.sequence_number = *curPtr++;
   // Security protected plain NAS message
-  sec_nas_msg.epd = *curPtr++;
-  sec_nas_msg.sht = *curPtr++;
-  sec_nas_msg.msg_type = *curPtr++;
+  mm_msg_header_t *header = &sec_nas_msg.header;
+  header->ex_protocol_discriminator = *curPtr++;
+  header->security_header_type = *curPtr++;
+  header->message_type = *curPtr++;
   sec_nas_msg.payload_type = *curPtr++;
   sec_nas_msg.payload_len = getShort(curPtr);
   curPtr += sizeof(sec_nas_msg.payload_len);
   /* Mandatory Presence IEs */
-  psea_msg.epd = *curPtr++;
-  psea_msg.pdu_id = *curPtr++;
-  psea_msg.pti = *curPtr++;
-  psea_msg.msg_type = *curPtr++;
+  sm_msg_header_t *sm_header = &psea_msg.header;
+  sm_header->ex_protocol_discriminator = *curPtr++;
+  sm_header->pdu_session_id = *curPtr++;
+  sm_header->pti = *curPtr++;
+  sm_header->message_type = *curPtr++;
   psea_msg.pdu_type = *curPtr & 0x0f;
   psea_msg.ssc_mode = (*curPtr++ & 0xf0) >> 4;
   psea_msg.qos_rules.length = getShort(curPtr);
@@ -125,12 +125,11 @@ void capture_pdu_session_establishment_accept_msg(uint8_t *buffer, uint32_t msg_
   qos_rule.dqr = (*(curPtr)&0x10) >> 4;
   qos_rule.nb_pf = *curPtr++ & 0x0F;
 
-  if(qos_rule.nb_pf) {
+  if (qos_rule.nb_pf) {
     packet_filter_t pf;
 
-    if(qos_rule.oc == ROC_CREATE_NEW_QOS_RULE ||
-       qos_rule.oc == ROC_MODIFY_QOS_RULE_ADD_PF ||
-       qos_rule.oc == ROC_MODIFY_QOS_RULE_REPLACE_PF) {
+    if (qos_rule.oc == ROC_CREATE_NEW_QOS_RULE || qos_rule.oc == ROC_MODIFY_QOS_RULE_ADD_PF
+        || qos_rule.oc == ROC_MODIFY_QOS_RULE_REPLACE_PF) {
       pf.pf_type.type_1.pf_dir = (*curPtr & 0x30) >> 4;
       pf.pf_type.type_1.pf_id = *curPtr++ & 0x0F;
       pf.pf_type.type_1.length = *curPtr++;
@@ -172,8 +171,7 @@ void capture_pdu_session_establishment_accept_msg(uint8_t *buffer, uint32_t msg_
           capture_ipv4_addr(&addr[0], ip, sizeof(ip));
           tun_config(1, ip, NULL, "oaitun_ue");
           setup_ue_ipv4_route(1, ip, "oaitun_ue");
-          LOG_I(NAS, "Received PDU Session Establishment Accept, UE IP: %u.%u.%u.%u\n",
-                addr[0], addr[1], addr[2], addr[3]);
+          LOG_I(NAS, "Received PDU Session Establishment Accept, UE IP: %u.%u.%u.%u\n", addr[0], addr[1], addr[2], addr[3]);
         } else if (psea_msg.pdu_addr_ie.pdu_type == PDU_SESSION_TYPE_IPV6) {
           for (int i = 0; i < IPv6_INTERFACE_ID_LENGTH; ++i)
             addr[i] = *curPtr++;
@@ -236,8 +234,7 @@ void capture_pdu_session_establishment_accept_msg(uint8_t *buffer, uint32_t msg_
         psea_msg.dnn_ie.dnn_length = *curPtr++;
         char apn[APN_MAX_LEN];
 
-        if(psea_msg.dnn_ie.dnn_length <= APN_MAX_LEN &&
-           psea_msg.dnn_ie.dnn_length >= APN_MIN_LEN) {
+        if (psea_msg.dnn_ie.dnn_length <= APN_MAX_LEN && psea_msg.dnn_ie.dnn_length >= APN_MIN_LEN) {
           memcpy(apn, curPtr, psea_msg.dnn_ie.dnn_length);
           LOG_T(NAS, "PDU SESSION ESTABLISHMENT ACCEPT - APN: %s\n", apn);
         } else
@@ -252,6 +249,6 @@ void capture_pdu_session_establishment_accept_msg(uint8_t *buffer, uint32_t msg_
     }
   }
 
-  set_qfi_pduid(qos_rule.qfi, psea_msg.pdu_id);
+  set_qfi_pduid(qos_rule.qfi, psea_msg.header.pdu_session_id);
   return;
 }

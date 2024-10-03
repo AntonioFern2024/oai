@@ -19,9 +19,9 @@
  *      contact@openairinterface.org
  */
 
-/*! \file PduSessionEstablishRequest.h
+/*! \file RegistrationAccept.h
 
-\brief pdu session establishment request procedures
+\brief 5GS registration accept procedures
 \author Yoshio INOUE, Masayuki HARADA
 \email: yoshio.inoue@fujitsu.com,masayuki.harada@fujitsu.com
 \date 2020
@@ -33,33 +33,36 @@
 #include <stdint.h>
 
 #include "ExtendedProtocolDiscriminator.h"
+#include "SecurityHeaderType.h"
+#include "SpareHalfOctet.h"
 #include "MessageType.h"
+#include "FGSRegistrationResult.h"
+#include "FGSMobileIdentity.h"
 
-#ifndef PDU_SESSION_ESTABLISHMENT_REQUEST_H_
-#define PDU_SESSION_ESTABLISHMENT_REQUEST_H_
-
+#ifndef REGISTRATION_ACCEPT_H_
+#define REGISTRATION_ACCEPT_H_
 
 /*
- * Message name: pdu session establishment request
- * Description: The PDU SESSION ESTABLISHMENT REQUEST message is sent by the UE to the SMF to initiate establishment of a PDU session. See table 8.3.1.1.1.
+ * Message name: Registration accept
+ * Description: The REGISTRATION ACCEPT message is sent by the AMF to the UE. See table 8.2.7.1.1.
  * Significance: dual
- * Direction: UE to network
+ * Direction: network to UE
  */
 
-typedef struct pdu_session_establishment_request_msg_tag {
-    /* Mandatory fields */
-    ExtendedProtocolDiscriminator           protocoldiscriminator;
-    uint8_t                                 pdusessionid;
-    uint8_t                                 pti;
-    MessageType                             pdusessionestblishmsgtype;
-    uint16_t                                maxdatarate;
-    uint8_t                                 pdusessiontype;
-    /* Optional fields */
-} pdu_session_establishment_request_msg;
+typedef struct registration_accept_msg_tag {
+  /* Mandatory fields */
+  ExtendedProtocolDiscriminator protocoldiscriminator;
+  SecurityHeaderType securityheadertype: 4;
+  SpareHalfOctet sparehalfoctet: 4;
+  MessageType messagetype;
+  FGSRegistrationResult fgsregistrationresult;
 
+  /* Optional fields */
+  FGSMobileIdentity *guti;
+} registration_accept_msg;
 
-int encode_pdu_session_establishment_request(pdu_session_establishment_request_msg *pdusessionestablishrequest, uint8_t *buffer);
+int decode_registration_accept(registration_accept_msg *registrationaccept, const uint8_t *buffer, uint32_t len);
 
-#endif /* ! defined(PDU_SESSION_ESTABLISHMENT_REQUEST_H_) */
+int encode_registration_accept(registration_accept_msg *registrationaccept, uint8_t *buffer, uint32_t len);
 
-
+#endif /* ! defined(REGISTRATION_ACCEPT_H_) */

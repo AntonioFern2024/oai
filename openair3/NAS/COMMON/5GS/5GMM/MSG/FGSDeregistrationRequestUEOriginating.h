@@ -22,17 +22,14 @@
 #ifndef FGS_DEREGISTRATION_REQUEST_UE_ORIGINATING_H_
 #define FGS_DEREGISTRATION_REQUEST_UE_ORIGINATING_H_
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <stdint.h>
-
 #include "ExtendedProtocolDiscriminator.h"
+#include "FGSDeregistrationType.h"
+#include "FGSMobileIdentity.h"
+#include "MessageType.h"
+#include "NasKeySetIdentifier.h"
 #include "SecurityHeaderType.h"
 #include "SpareHalfOctet.h"
-#include "MessageType.h"
-#include "FGSDeregistrationType.h"
-#include "NasKeySetIdentifier.h"
-#include "FGSMobileIdentity.h"
 
 /*
  * Message name: De-registration request (UE originating de-registration)
@@ -57,4 +54,3 @@ int encode_fgs_deregistration_request_ue_originating(fgs_deregistration_request_
                                                      uint32_t len);
 
 #endif /* ! defined(REGISTRATION_REQUEST_H_) */
-

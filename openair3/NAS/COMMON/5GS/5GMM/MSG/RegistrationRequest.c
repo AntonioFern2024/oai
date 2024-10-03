@@ -27,14 +27,10 @@
  * \version 0.1
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
-
-#include "nas_log.h"
-
 #include "RegistrationRequest.h"
+#include <stdint.h>
+#include "T.h"
+#include "nas_log.h"
 
 int decode_registration_request(registration_request_msg *registration_request, uint8_t *buffer, uint32_t len)
 {
@@ -42,28 +38,31 @@ int decode_registration_request(registration_request_msg *registration_request, 
   int decoded_result = 0;
 
   LOG_FUNC_IN;
-  LOG_TRACE(INFO, "EMM  - registration_request len = %d",
-            len);
+  LOG_TRACE(INFO, "EMM  - registration_request len = %d", len);
 
   /* Decoding mandatory fields */
-  if ((decoded_result = decode_5gs_registration_type(&registration_request->fgsregistrationtype, 0, *(buffer + decoded)  & 0x0f, len - decoded)) < 0) {
+  if ((decoded_result =
+           decode_5gs_registration_type(&registration_request->fgsregistrationtype, 0, *(buffer + decoded) & 0x0f, len - decoded))
+      < 0) {
     //         return decoded_result;
     LOG_FUNC_RETURN(decoded_result);
   }
 
-  if ((decoded_result = decode_u8_nas_key_set_identifier(&registration_request->naskeysetidentifier, 0, *(buffer + decoded) >> 4, len - decoded)) < 0) {
+  if ((decoded_result =
+           decode_u8_nas_key_set_identifier(&registration_request->naskeysetidentifier, 0, *(buffer + decoded) >> 4, len - decoded))
+      < 0) {
     //         return decoded_result;
     LOG_FUNC_RETURN(decoded_result);
   }
 
   decoded++;
 
-  if ((decoded_result = decode_5gs_mobile_identity(&registration_request->fgsmobileidentity, 0, buffer + decoded, len - decoded)) < 0) {
+  if ((decoded_result = decode_5gs_mobile_identity(&registration_request->fgsmobileidentity, 0, buffer + decoded, len - decoded))
+      < 0) {
     //         return decoded_result;
     LOG_FUNC_RETURN(decoded_result);
   } else
     decoded += decoded_result;
-
 
   // TODO, Decoding optional fields
 
@@ -75,12 +74,12 @@ int encode_registration_request(registration_request_msg *registration_request, 
   int encoded = 0;
   int encode_result = 0;
 
-  *(buffer + encoded) = ((encode_u8_nas_key_set_identifier(&registration_request->naskeysetidentifier) & 0x0f) << 4) | (encode_5gs_registration_type(&registration_request->fgsregistrationtype) & 0x0f);
+  *(buffer + encoded) = ((encode_u8_nas_key_set_identifier(&registration_request->naskeysetidentifier) & 0x0f) << 4)
+                        | (encode_5gs_registration_type(&registration_request->fgsregistrationtype) & 0x0f);
   encoded++;
 
-  if ((encode_result =
-         encode_5gs_mobile_identity(&registration_request->fgsmobileidentity, 0, buffer +
-                                    encoded, len - encoded)) < 0)        //Return in case of error
+  if ((encode_result = encode_5gs_mobile_identity(&registration_request->fgsmobileidentity, 0, buffer + encoded, len - encoded))
+      < 0) // Return in case of error
     return encode_result;
   else
     encoded += encode_result;
@@ -88,8 +87,10 @@ int encode_registration_request(registration_request_msg *registration_request, 
   if ((registration_request->presencemask & REGISTRATION_REQUEST_5GMM_CAPABILITY_PRESENT)
       == REGISTRATION_REQUEST_5GMM_CAPABILITY_PRESENT) {
     if ((encode_result = encode_5gmm_capability(&registration_request->fgmmcapability,
-                         REGISTRATION_REQUEST_5GMM_CAPABILITY_IEI, buffer + encoded, len -
-                         encoded)) < 0)
+                                                REGISTRATION_REQUEST_5GMM_CAPABILITY_IEI,
+                                                buffer + encoded,
+                                                len - encoded))
+        < 0)
       // Return in case of error
       return encode_result;
     else
@@ -99,16 +100,16 @@ int encode_registration_request(registration_request_msg *registration_request, 
   if ((registration_request->presencemask & REGISTRATION_REQUEST_UE_SECURITY_CAPABILITY_PRESENT)
       == REGISTRATION_REQUEST_UE_SECURITY_CAPABILITY_PRESENT) {
     if ((encode_result = encode_nrue_security_capability(&registration_request->nruesecuritycapability,
-                         REGISTRATION_REQUEST_UE_SECURITY_CAPABILITY_IEI, buffer + encoded, len -
-                         encoded)) < 0)
+                                                         REGISTRATION_REQUEST_UE_SECURITY_CAPABILITY_IEI,
+                                                         buffer + encoded,
+                                                         len - encoded))
+        < 0)
       // Return in case of error
       return encode_result;
     else
       encoded += encode_result;
   }
 
-
   // TODO, Encoding optional fields
   return encoded;
 }
-
