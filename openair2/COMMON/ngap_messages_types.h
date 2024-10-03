@@ -29,6 +29,7 @@
 
 #ifndef NGAP_MESSAGES_TYPES_H_
 #define NGAP_MESSAGES_TYPES_H_
+#include "common/5g_platform_types.h"
 #include "common/platform_constants.h"
 #include "common/platform_types.h"
 #include "common/ngran_types.h"
@@ -195,11 +196,6 @@ typedef enum ngap_rrc_establishment_cause_e {
   NGAP_RRC_CAUSE_NOTAVAILABLE          = 0x10,
   NGAP_RRC_CAUSE_LAST
 } ngap_rrc_establishment_cause_t;
-
-typedef struct nssai_s {
-  uint8_t sst;
-  uint32_t sd;
-} nssai_t;
 
 typedef struct pdusession_level_qos_parameter_s {
   uint8_t qfi;
