@@ -1633,6 +1633,15 @@ static void handle_rrcReconfigurationComplete(const protocol_ctxt_t *const ctxt_
       LOG_I(RRC, "UE %d: transaction %d still ongoing for action %d\n", UE->rrc_ue_id, i, UE->xids[i]);
     }
   }
+
+  if (UE->ho_context != NULL) {
+    LOG_A(NR_RRC, "handover for UE %d/RNTI %04x complete!\n", UE->rrc_ue_id, UE->rnti);
+    DevAssert(UE->ho_context->target != NULL);
+
+    gNB_RRC_INST *rrc = RC.nrrrc[ctxt_pP->module_id];
+    UE->ho_context->target->ho_success(rrc, UE);
+    nr_rrc_finalize_ho(UE);
+  }
 }
 //-----------------------------------------------------------------------------
 int rrc_gNB_decode_dcch(const protocol_ctxt_t *const ctxt_pP,
