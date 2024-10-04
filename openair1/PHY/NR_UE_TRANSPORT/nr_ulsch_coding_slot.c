@@ -155,6 +155,7 @@ int nr_ulsch_encoding_slot(PHY_VARS_NR_UE *ue,
     for (int r = 0; r < TB_encoding_params->C; r++) {
       nrLDPC_segment_encoding_parameters_t *segment_encoding_params = &TB_encoding_params->segments[r];
       segment_encoding_params->c = harq_process->c[r];
+      segment_encoding_params->d = harq_process->d[r];
       segment_encoding_params->E =
           nr_get_E(TB_encoding_params->G, TB_encoding_params->C, TB_encoding_params->Qm, TB_encoding_params->nb_layers, r);
       segment_encoding_params->output = harq_process->f + r_offset;

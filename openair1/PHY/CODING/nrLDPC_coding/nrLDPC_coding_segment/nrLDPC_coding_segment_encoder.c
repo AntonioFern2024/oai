@@ -62,19 +62,26 @@ static void ldpc8blocks_coding_segment(void *p)
   unsigned int G = nrLDPC_TB_encoding_parameters->G;
   LOG_D(PHY,"dlsch coding A %d  Kr %d G %d (nb_rb %d, mod_order %d)\n",
         A,impp->K,G, nb_rb,(int)mod_order);
+
   // nrLDPC_encoder output is in "d"
   // let's make this interface happy!
-  uint8_t tmp[8][68 * 384]__attribute__((aligned(32)));
   uint8_t *d[impp->n_segments];
   for (int rr=impp->macro_num*8, i=0; rr < impp->n_segments && rr < (impp->macro_num+1)*8; rr++,i++ )
-    d[rr] = tmp[i];
-  uint8_t *c[nrLDPC_TB_encoding_parameters->C];
-  for (int r = 0; r < nrLDPC_TB_encoding_parameters->C; r++)
-    c[r]=nrLDPC_TB_encoding_parameters->segments[r].c;
-  start_meas(&nrLDPC_TB_encoding_parameters->segments[impp->macro_num*8].ts_ldpc_encode);
-  ldpc_interface_segment.LDPCencoder(c, d, impp);
-  stop_meas(&nrLDPC_TB_encoding_parameters->segments[impp->macro_num*8].ts_ldpc_encode);
-  // Compute where to place in output buffer that is concatenation of all segments
+    d[rr] = nrLDPC_TB_encoding_parameters->segments[rr].d;
+
+  // encode only on first HARQ round
+  // rv_index == 0 on first HARQ round
+  // FIXME is it 100% sure that rv_index == 0 on and only on first HARQ round?
+  if (nrLDPC_TB_encoding_parameters->rv_index  == 0) {
+    uint8_t *c[nrLDPC_TB_encoding_parameters->C];
+    for (int r = 0; r < nrLDPC_TB_encoding_parameters->C; r++)
+      c[r]=nrLDPC_TB_encoding_parameters->segments[r].c;
+    start_meas(&nrLDPC_TB_encoding_parameters->segments[impp->macro_num*8].ts_ldpc_encode);
+    ldpc_interface_segment.LDPCencoder(c, d, impp);
+    stop_meas(&nrLDPC_TB_encoding_parameters->segments[impp->macro_num*8].ts_ldpc_encode);
+    // Compute where to place in output buffer that is concatenation of all segments
+  }
+
   uint32_t r_offset=0;
   for (int i=0; i < impp->macro_num*8; i++ )
      r_offset+=nrLDPC_TB_encoding_parameters->segments[i].E;

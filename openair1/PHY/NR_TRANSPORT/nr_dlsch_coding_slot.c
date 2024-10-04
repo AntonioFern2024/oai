@@ -222,6 +222,7 @@ int nr_dlsch_encoding_slot(PHY_VARS_gNB *gNB,
                                                              nrLDPC_TB_encoding_parameters.Qm,
                                                              rel15->nrOfLayers,
                                                              r);
+      nrLDPC_TB_encoding_parameters.segments[r].d = harq->d[r];
       nrLDPC_TB_encoding_parameters.segments[r].output = &output[dlsch_offset + r_offset];
       r_offset += nrLDPC_TB_encoding_parameters.segments[r].E;
 

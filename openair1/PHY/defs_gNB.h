@@ -62,6 +62,8 @@ typedef struct {
   uint8_t *b;
   /// Pointers to transport block segments
   uint8_t **c;
+  /// Pointers to code blocks after LDPC coding (38.212 V15.4.0 section 5.3.2)
+  uint8_t **d;
   /// Frame where current HARQ round was sent
   uint32_t frame;
   /// Interleaver outputs
