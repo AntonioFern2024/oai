@@ -272,30 +272,9 @@ void deallocate_nfapi_hi_dci0_request(nfapi_hi_dci0_request_t* req, pnf_p7_t* pn
 	pnf_p7_free(pnf_p7, req);
 }
 
-nfapi_nr_tx_data_request_t* allocate_nfapi_tx_data_request(pnf_p7_t* pnf_p7) 
-{ 
-	return pnf_p7_malloc(pnf_p7, sizeof(nfapi_nr_tx_data_request_t));
-}
-
 nfapi_tx_request_t* allocate_nfapi_tx_request(pnf_p7_t* pnf_p7) 
 { 
 	return pnf_p7_malloc(pnf_p7, sizeof(nfapi_tx_request_t));
-}
-
-//TODO: Check if deallocate_nfapi_tx_data_request defn is proper
-void deallocate_nfapi_tx_data_request(nfapi_nr_tx_data_request_t* req, pnf_p7_t* pnf_p7) 
-{
-/*
-	if(pnf_p7->_public.codec_config.deallocate)
-	{
-		(pnf_p7->_public.codec_config.deallocate)(req->pdu_list);
-	}
-	else
-	{
-		free(req->pdu_list);
-	}
-*/
-	pnf_p7_free(pnf_p7, req);
 }
 
 void deallocate_nfapi_tx_request(nfapi_tx_request_t* req, pnf_p7_t* pnf_p7) 
@@ -821,55 +800,6 @@ void pnf_nr_pack_and_send_timing_info(pnf_p7_t* pnf_p7)
 	pnf_p7->timing_info_ms_counter = 0;
 }
 
-
-void send_dummy_slot(pnf_p7_t* pnf_p7, uint16_t sfn, uint16_t slot)
-{
-  struct timespec t;
-  clock_gettime( CLOCK_MONOTONIC, &t);
-
-  //NFAPI_TRACE(NFAPI_TRACE_INFO, "%s(sfn_sf:%d) t:%ld.%09ld\n", __FUNCTION__, NFAPI_SFNSF2DEC(sfn_sf), t.tv_sec, t.tv_nsec);
-
-	if(pnf_p7->_public.tx_data_req_fn && pnf_p7->_public.dummy_slot.tx_data_req)
-	{
-		pnf_p7->_public.dummy_slot.tx_data_req->SFN = sfn;
-		pnf_p7->_public.dummy_slot.tx_data_req->Slot = slot;
-		//NFAPI_TRACE(NFAPI_TRACE_INFO, "Dummy tx_req - enter\n");
-		(pnf_p7->_public.tx_data_req_fn)(&pnf_p7->_public, pnf_p7->_public.dummy_slot.tx_data_req);
-		//NFAPI_TRACE(NFAPI_TRACE_INFO, "Dummy tx_req - exit\n");
-	}
-	if(pnf_p7->_public.dl_tti_req_fn && pnf_p7->_public.dummy_slot.dl_tti_req)
-	{
-		pnf_p7->_public.dummy_slot.dl_tti_req->SFN = sfn;
-		pnf_p7->_public.dummy_slot.dl_tti_req->Slot = slot;
-		//NFAPI_TRACE(NFAPI_TRACE_INFO, "Dummy dl_config_req - enter\n");
-		(pnf_p7->_public.dl_tti_req_fn)(NULL, &(pnf_p7->_public), pnf_p7->_public.dummy_slot.dl_tti_req);
-		//NFAPI_TRACE(NFAPI_TRACE_INFO, "Dummy dl_config_req - exit\n");
-	}
-	if(pnf_p7->_public.ul_tti_req_fn && pnf_p7->_public.dummy_slot.ul_tti_req)
-	{
-		pnf_p7->_public.dummy_slot.ul_tti_req->SFN = sfn;
-		pnf_p7->_public.dummy_slot.ul_tti_req->Slot = slot;
-		NFAPI_TRACE(NFAPI_TRACE_INFO, "Dummy ul_config_req - enter\n");
-		(pnf_p7->_public.ul_tti_req_fn)(NULL, &pnf_p7->_public, pnf_p7->_public.dummy_slot.ul_tti_req);
-	}
-	if(pnf_p7->_public.ul_dci_req_fn && pnf_p7->_public.dummy_slot.ul_dci_req)
-	{
-		pnf_p7->_public.dummy_slot.ul_dci_req->SFN = sfn;
-		pnf_p7->_public.dummy_slot.ul_dci_req->Slot = slot;
-		NFAPI_TRACE(NFAPI_TRACE_INFO, "Dummy hi_dci0 - enter\n");
-		(pnf_p7->_public.ul_dci_req_fn)(NULL, &pnf_p7->_public, pnf_p7->_public.dummy_slot.ul_dci_req);
-	}
-	#if 0
-	if(pnf_p7->_public.lbt_dl_config_req && pnf_p7->_public.dummy_subframe.lbt_dl_config_req) // TODO: Change later
-	{
-		pnf_p7->_public.dummy_slot.lbt_dl_config_req->sfn_sf = sfn;
-		NFAPI_TRACE(NFAPI_TRACE_INFO, "Dummy lbt - enter\n");
-		(pnf_p7->_public.lbt_dl_config_req)(&pnf_p7->_public, pnf_p7->_public.dummy_slot.lbt_dl_config_req);
-	}
-	#endif
-}
-
-
 void send_dummy_subframe(pnf_p7_t* pnf_p7, uint16_t sfn_sf)
 {
   struct timespec t;
@@ -932,7 +862,7 @@ int pnf_p7_slot_ind(pnf_p7_t* pnf_p7, uint16_t phy_id, uint16_t sfn, uint16_t sl
 
 	// save the curren time, sfn and slot
 	pnf_p7->slot_start_time_hr = pnf_get_current_time_hr();
-	int slot_ahead = 6;
+	int slot_ahead = 0;
 	uint32_t sfn_slot_tx = sfnslot_add_slot(sfn, slot, slot_ahead);
 	uint16_t sfn_tx = NFAPI_SFNSLOT2SFN(sfn_slot_tx);
 	uint8_t slot_tx = NFAPI_SFNSLOT2SLOT(sfn_slot_tx);
@@ -977,170 +907,44 @@ int pnf_p7_slot_ind(pnf_p7_t* pnf_p7, uint16_t phy_id, uint16_t sfn, uint16_t sl
 
 		nfapi_pnf_p7_slot_buffer_t* tx_slot_buffer = &(pnf_p7->slot_buffer[buffer_index_tx]);
 
-                // if (0) NFAPI_TRACE(NFAPI_TRACE_INFO, "%s() shift:%d slot_buffer->sfn_sf:%d tx_slot_buffer->sfn_slot:%d sfn_sf:%d subframe_buffer[buffer_index:%u dl_config_req:%p tx_req:%p] "
-                //     "TX:sfn_sf:%d:tx_buffer_index:%d[dl_config_req:%p tx_req:%p]\n", 
-                //     __FUNCTION__, 
-                //     pnf_p7->slot_shift, 
-                //     NFAPI_SFNSLOT2DEC(rx_slot_buffer->sfn, rx_slot_buffer->slot), 
-                //     NFAPI_SFNSLOT2DEC(tx_slot_buffer->sfn, tx_slot_buffer->slot), 
-                //        	slot_dec,    buffer_index_rx, rx_slot_buffer->dl_tti_req, rx_slot_buffer->tx_data_req, 
-                //     	tx_slot_dec, buffer_index_tx, tx_slot_buffer->dl_tti_req, tx_slot_buffer->tx_data_req);
-					//TODO: Change later if required
+		if(tx_slot_buffer->dl_tti_req.dl_tti_request_body.nPDUs > 0 && tx_slot_buffer->dl_tti_req.SFN == sfn_tx && tx_slot_buffer->dl_tti_req.Slot == slot_tx)
+		{
+			DevAssert(pnf_p7->_public.dl_tti_req_fn != NULL);
+			// pnf_phy_dl_tti_req()
+			(pnf_p7->_public.dl_tti_req_fn)(NULL, &(pnf_p7->_public), &tx_slot_buffer->dl_tti_req);
+		}
 
-		// todo : how to handle the messages we don't have, send dummies for
-		// now
+		if(tx_slot_buffer->ul_tti_req.n_pdus > 0 && tx_slot_buffer->ul_tti_req.SFN == sfn_tx && tx_slot_buffer->ul_tti_req.Slot == slot_tx)
+		{
+			DevAssert(pnf_p7->_public.ul_tti_req_fn != NULL);
+			// pnf_phy_ul_tti_req()
+			(pnf_p7->_public.ul_tti_req_fn)(NULL, &(pnf_p7->_public), &tx_slot_buffer->ul_tti_req);
+		}
 
-		//printf("tx_subframe_buffer->sfn_sf:%d sfn_sf_tx:%d\n", tx_subframe_buffer->sfn_sf, sfn_sf_tx);
-		//printf("subframe_buffer->sfn_sf:%d sfn_sf:%d\n", subframe_buffer->sfn_sf, sfn_sf);
-		//printf("tx_slot_buff_sfn - %d, tx_slot_buf_slot - %d, sfn_tx = %d, sllot_tx - %d \n",tx_slot_buffer->sfn,tx_slot_buffer->slot,sfn_tx,slot_tx);
-		// if(tx_slot_buffer->slot == slot_tx && tx_slot_buffer->sfn == sfn_tx)
-		// {	
-		
-		//checking in the tx slot buffers to see if a p7 msg is present. todo: what if it's a mixed slot? 
-
-		if(tx_slot_buffer->tx_data_req != 0 && tx_slot_buffer->tx_data_req->SFN == sfn_tx && tx_slot_buffer->tx_data_req->Slot == slot_tx)
+		if(tx_slot_buffer->tx_data_req.SFN == sfn_tx && tx_slot_buffer->tx_data_req.Slot == slot_tx)
 		{
 				
-			if(pnf_p7->_public.tx_data_req_fn)
-			{	
-				//NFAPI_TRACE(NFAPI_TRACE_INFO, "Calling tx_data_req_fn in SFN/slot %d.%d \n",sfn,slot);
-				LOG_D(PHY, "Process tx_data SFN/slot %d.%d buffer index: %d \n",sfn_tx,slot_tx,buffer_index_tx);	
-				(pnf_p7->_public.tx_data_req_fn)(&(pnf_p7->_public), tx_slot_buffer->tx_data_req);
-			}
-		}
-		else 
-		{
-			// send dummy
-			if(pnf_p7->_public.tx_data_req_fn && pnf_p7->_public.dummy_slot.tx_data_req)
-			{
-				pnf_p7->_public.dummy_slot.tx_data_req->SFN = sfn_tx;
-				pnf_p7->_public.dummy_slot.tx_data_req->Slot = slot_tx; 
-					
-				(pnf_p7->_public.tx_data_req_fn)(&(pnf_p7->_public), pnf_p7->_public.dummy_slot.tx_data_req);
-			}
-		}
-		 
-		if(tx_slot_buffer->dl_tti_req != 0 && tx_slot_buffer->dl_tti_req->SFN == sfn_tx && tx_slot_buffer->dl_tti_req->Slot == slot_tx) 
-		{
-			if(pnf_p7->_public.dl_tti_req_fn)
-			{
-				LOG_D(PHY, "Process dl_tti SFN/slot %d.%d buffer index: %d \n",sfn_tx,slot_tx,buffer_index_tx);
-				(pnf_p7->_public.dl_tti_req_fn)(NULL, &(pnf_p7->_public), tx_slot_buffer->dl_tti_req);
-			}
-		}
-		else
-		{
-			// send dummy
-			if(pnf_p7->_public.dl_tti_req_fn && pnf_p7->_public.dummy_slot.dl_tti_req)
-			{   
-				pnf_p7->_public.dummy_slot.dl_tti_req->SFN = sfn_tx;
-				pnf_p7->_public.dummy_slot.dl_tti_req->Slot = slot_tx;
-				(pnf_p7->_public.dl_tti_req_fn)(NULL, &(pnf_p7->_public), pnf_p7->_public.dummy_slot.dl_tti_req);
-			}
+			DevAssert(pnf_p7->_public.tx_data_req_fn != NULL);
+			LOG_D(PHY, "Process tx_data SFN/slot %d.%d buffer index: %d \n",sfn_tx,slot_tx,buffer_index_tx);	
+			// pnf_phy_tx_data_req()
+			(pnf_p7->_public.tx_data_req_fn)(&(pnf_p7->_public), &tx_slot_buffer->tx_data_req);
 		}
 
-
-		if(tx_slot_buffer->ul_dci_req!= 0 && tx_slot_buffer->ul_dci_req->SFN == sfn_tx && tx_slot_buffer->ul_dci_req->Slot == slot_tx)
+		if(tx_slot_buffer->ul_dci_req.numPdus > 0 && tx_slot_buffer->ul_dci_req.SFN == sfn_tx && tx_slot_buffer->ul_dci_req.Slot == slot_tx)
 		{
-			if(pnf_p7->_public.ul_dci_req_fn)
-			{   
-				//NFAPI_TRACE(NFAPI_TRACE_INFO, "Calling UL_dci_req_fn in SFN/slot %d.%d \n",sfn,slot);
-				LOG_D(PHY, "Process ul_dci SFN/slot %d.%d buffer index: %d \n",sfn_tx,slot_tx,buffer_index_tx);
- 				(pnf_p7->_public.ul_dci_req_fn)(NULL, &(pnf_p7->_public), tx_slot_buffer->ul_dci_req);
-			}
-		}
-		else
-		{
-			//send dummy
-			if(pnf_p7->_public.ul_dci_req_fn && pnf_p7->_public.dummy_slot.ul_dci_req)
-			{
-				pnf_p7->_public.dummy_slot.ul_dci_req->SFN = sfn_tx;
-				pnf_p7->_public.dummy_slot.ul_dci_req->Slot = slot_tx;
-				(pnf_p7->_public.ul_dci_req_fn)(NULL, &(pnf_p7->_public), pnf_p7->_public.dummy_slot.ul_dci_req);
-			}
-		}
-		if(tx_slot_buffer->ul_tti_req != 0)
-		{
-			if(pnf_p7->_public.ul_tti_req_fn)
-			{ 
-				(pnf_p7->_public.ul_tti_req_fn)(NULL, &(pnf_p7->_public), tx_slot_buffer->ul_tti_req);
-			}
-		}
-		else
-		{
-			// send dummy
-			if(pnf_p7->_public.ul_tti_req_fn && pnf_p7->_public.dummy_slot.ul_tti_req)
-			{
-				pnf_p7->_public.dummy_slot.ul_tti_req->SFN = sfn_tx;
-				pnf_p7->_public.dummy_slot.ul_tti_req->Slot = slot_tx;
-				(pnf_p7->_public.ul_tti_req_fn)(NULL, &(pnf_p7->_public), pnf_p7->_public.dummy_slot.ul_tti_req);
-			}
-		}
-
-		//deallocate slot buffers after passing down the PDUs to PHY processing
-
-		if(tx_slot_buffer->dl_tti_req != 0)
-		{
-			deallocate_nfapi_dl_tti_request(tx_slot_buffer->dl_tti_req, pnf_p7);
-			tx_slot_buffer->dl_tti_req = 0;
-			LOG_D(PHY,"SFN/slot %d.%d Buffer index : %d freed \n",sfn_tx,slot_tx,buffer_index_tx);
-		}
-
-		if(tx_slot_buffer->tx_data_req != 0)
-		{
-			deallocate_nfapi_tx_data_request(tx_slot_buffer->tx_data_req, pnf_p7);
-			tx_slot_buffer->tx_data_req = 0;
-		}
-
-		if(tx_slot_buffer->ul_dci_req != 0)
-		{
-			deallocate_nfapi_ul_dci_request(tx_slot_buffer->ul_dci_req, pnf_p7);
-			tx_slot_buffer->ul_dci_req = 0;
-		}
-
-
-		//checking in the rx slot buffers to see if a p7 msg is present.
-
-		if(rx_slot_buffer->ul_tti_req != 0 && rx_slot_buffer->ul_tti_req->SFN == sfn && rx_slot_buffer->ul_tti_req->Slot == slot)
-		{
-			if(pnf_p7->_public.ul_tti_req_fn)
-			{ 	
-				//NFAPI_TRACE(NFAPI_TRACE_INFO, "Calling UL_tti_req_fn in SFN/slot %d.%d \n",sfn,slot);
-				(pnf_p7->_public.ul_tti_req_fn)(NULL, &(pnf_p7->_public), rx_slot_buffer->ul_tti_req);
-			}
-		}
-		else
-		{
-			// send dummy
-			if(pnf_p7->_public.ul_tti_req_fn && pnf_p7->_public.dummy_slot.ul_tti_req)
-			{
-				pnf_p7->_public.dummy_slot.ul_tti_req->SFN = sfn;
-				pnf_p7->_public.dummy_slot.ul_tti_req->Slot = slot;
-				LOG_D(PHY, "Process ul_tti SFN/slot %d.%d buffer index: %d \n",sfn,slot,buffer_index_rx);
-				(pnf_p7->_public.ul_tti_req_fn)(NULL, &(pnf_p7->_public), pnf_p7->_public.dummy_slot.ul_tti_req);
-			}
-		}
-		if(rx_slot_buffer->ul_tti_req != 0)
-		{
-			deallocate_nfapi_ul_tti_request(rx_slot_buffer->ul_tti_req, pnf_p7);
-			rx_slot_buffer->ul_tti_req = 0;
-
+			DevAssert(pnf_p7->_public.ul_dci_req_fn != NULL);
+			LOG_D(PHY, "Process ul_dci SFN/slot %d.%d buffer index: %d \n",sfn_tx,slot_tx,buffer_index_tx);
+			// pnf_phy_ul_dci_req()
+     		(pnf_p7->_public.ul_dci_req_fn)(NULL, &(pnf_p7->_public), &tx_slot_buffer->ul_dci_req);
 		}
 
 		//reset slot buffer 
 
-		if ( rx_slot_buffer->dl_tti_req == 0 &&
-			 rx_slot_buffer->tx_data_req == 0 && 
-			 rx_slot_buffer->ul_tti_req == 0)
+		if (rx_slot_buffer->ul_tti_req.n_pdus == 0)
 		{
-			memset(&(pnf_p7->slot_buffer[buffer_index_rx]), 0, sizeof(nfapi_pnf_p7_slot_buffer_t));
 			pnf_p7->slot_buffer[buffer_index_rx].sfn = -1;
 			pnf_p7->slot_buffer[buffer_index_rx].slot = -1;
 		}
-
-		//printf("pnf_p7->_public.timing_info_mode_periodic:%d pnf_p7->timing_info_period_counter:%d pnf_p7->_public.timing_info_period:%d\n", pnf_p7->_public.timing_info_mode_periodic, pnf_p7->timing_info_period_counter, pnf_p7->_public.timing_info_period);
-		//printf("pnf_p7->_public.timing_info_mode_aperiodic:%d pnf_p7->timing_info_aperiodic_send:%d\n", pnf_p7->_public.timing_info_mode_aperiodic, pnf_p7->timing_info_aperiodic_send);
-		//printf("pnf_p7->timing_info_ms_counter:%d\n", pnf_p7->timing_info_ms_counter);
 
 		//send the periodic timing info if configured
 		if(pnf_p7->_public.timing_info_mode_periodic && (pnf_p7->timing_info_period_counter++) == pnf_p7->_public.timing_info_period)
@@ -1460,85 +1264,20 @@ int pnf_p7_subframe_ind(pnf_p7_t* pnf_p7, uint16_t phy_id, uint16_t sfn_sf)
 	return 0;
 }
 
-
-
-// return 1 if in window
-// return 0 if out of window
-
-uint8_t is_nr_p7_request_in_window(uint16_t sfn,uint16_t slot, const char* name, pnf_p7_t* phy)
+bool is_nr_p7_request_in_window(uint16_t sfn, uint16_t slot, const char* name, pnf_p7_t* phy)
 {
-	uint32_t recv_sfn_slot_dec = NFAPI_SFNSLOT2DEC(sfn,slot);
-	uint32_t current_sfn_slot_dec = NFAPI_SFNSLOT2DEC(phy->sfn,phy->slot);
-	//printf("p7_msg_sfn: %d, p7_msg_slot: %d, phy_sfn:%d , phy_slot:%d \n",sfn,slot,phy->sfn,phy->slot);
-	uint8_t in_window = 0;
-	uint8_t timing_window = phy->_public.slot_buffer_size;
-
-	// if(recv_sfn_slot_dec <= current_sfn_slot_dec)
-	// {
-	// 	// Need to check for wrap in window
-	// 	if(((recv_sfn_slot_dec + timing_window) % NFAPI_MAX_SFNSLOTDEC) < recv_sfn_slot_dec)
-	// 	{
-	// 		if(current_sfn_slot_dec > ((recv_sfn_slot_dec + timing_window) % NFAPI_MAX_SFNSLOTDEC))
-	// 		{
-	// 			// out of window
-	// 			NFAPI_TRACE(NFAPI_TRACE_NOTE, "[%d] %s is late %d (with wrap)\n", current_sfn_slot_dec, name, recv_sfn_slot_dec);
-	// 		}
-	// 		else
-	// 		{
-	// 			// ok
-	// 			//NFAPI_TRACE(NFAPI_TRACE_NOTE, "[%d] %s is in window %d (with wrap)\n", current_sfn_sf_dec, name, recv_sfn_sf_dec);
-	// 			in_window = 1;
-	// 		}
-	// 	}
-	// 	else
-	// 	{
-	// 		if((current_sfn_slot_dec - recv_sfn_slot_dec) <= timing_window)
-	// 			{
-	// 				// in window
-	// 				//NFAPI_TRACE(NFAPI_TRACE_NOTE, "[%d] %s is in window %d\n", current_sfn_slot_dec, name, recv_sfn_slot_dec);
-	// 				in_window = 1;
-	// 			}
-	// 		//NFAPI_TRACE(NFAPI_TRACE_NOTE, "[%d] %s is in late %d (delta:%d)\n", current_sfn_slot_dec, name, recv_sfn_slot_dec, (current_sfn_slot_dec - recv_sfn_slot_dec));
-	// 	}
-
-	// }
-	// else
-	// {
-	// 	// Need to check it is in window
-	// 	if((recv_sfn_slot_dec - current_sfn_slot_dec) <= timing_window)
-	// 	{
-	// 		// in window
-	// 		//NFAPI_TRACE(NFAPI_TRACE_NOTE, "[%d] %s is in window %d\n", current_sfn_sf_dec, name, recv_sfn_sf_dec);
-	// 		in_window = 1;
-	// 	}
-	// 	else
-	// 	{
-	// 		// too far in the future
-	// 		NFAPI_TRACE(NFAPI_TRACE_NOTE, "[%d] %s is out of window %d (delta:%d) [max:%d]\n", current_sfn_slot_dec, name, recv_sfn_slot_dec,  (recv_sfn_slot_dec - current_sfn_slot_dec), timing_window);
-	// 	}
-
-	// }
-	if(current_sfn_slot_dec <= recv_sfn_slot_dec + timing_window){
-		in_window = 1;
-		//NFAPI_TRACE(NFAPI_TRACE_NOTE, "[%d] %s is in window %d\n", current_sfn_slot_dec, name, recv_sfn_slot_dec);
-	}
-	else if(current_sfn_slot_dec + NFAPI_MAX_SFNSLOTDEC <= recv_sfn_slot_dec + timing_window){ //checking for wrap
-		in_window = 1;
-		//NFAPI_TRACE(NFAPI_TRACE_NOTE, "[%d] %s is in window %d\n", current_sfn_slot_dec, name, recv_sfn_slot_dec);
-	}
-  
-	else
-	{ 	
-		
-		NFAPI_TRACE(NFAPI_TRACE_NOTE, "[%d] %s is out of window %d (delta:%d) [max:%d]\n", current_sfn_slot_dec, name, recv_sfn_slot_dec,  (current_sfn_slot_dec - recv_sfn_slot_dec), timing_window);
-		
-	}//Need to add more cases
-	
-
-	return in_window;
+  uint32_t recv = NFAPI_SFNSLOT2DEC(sfn, slot); // unpack sfn/slot
+  uint32_t curr = NFAPI_SFNSLOT2DEC(phy->sfn, phy->slot);
+  uint8_t timing_window = phy->_public.slot_buffer_size;
+  uint32_t diff = abs(curr - recv);
+  if (diff > NFAPI_MAX_SFNSLOTDEC / 2)
+    diff = NFAPI_MAX_SFNSLOTDEC - diff;
+  if (diff > timing_window) {
+    NFAPI_TRACE(NFAPI_TRACE_NOTE, "[%d] %s is out of window %d (delta:%d) [max:%d]\n", curr, name, recv, diff, timing_window);
+    return false;
+  }
+  return true;
 }
-
-
 
 uint8_t is_p7_request_in_window(uint16_t sfnsf, const char* name, pnf_p7_t* phy)
 {
@@ -1593,18 +1332,172 @@ uint8_t is_p7_request_in_window(uint16_t sfnsf, const char* name, pnf_p7_t* phy)
 }
 
 
-// P7 messages 
+// P7 messages
+static void cp_nr_dl_tti_pdcch_pdu(nfapi_nr_dl_tti_pdcch_pdu_rel15_t* dst_pdcch_pdu,
+                                   const nfapi_nr_dl_tti_pdcch_pdu_rel15_t* src_pdcch_pdu)
+{
+  if (dst_pdcch_pdu == NULL || src_pdcch_pdu == NULL) {
+    return;
+  }
+  dst_pdcch_pdu->BWPSize = src_pdcch_pdu->BWPSize;
+  dst_pdcch_pdu->BWPStart = src_pdcch_pdu->BWPStart;
+  dst_pdcch_pdu->SubcarrierSpacing = src_pdcch_pdu->SubcarrierSpacing;
+  dst_pdcch_pdu->CyclicPrefix = src_pdcch_pdu->CyclicPrefix;
+  dst_pdcch_pdu->StartSymbolIndex = src_pdcch_pdu->StartSymbolIndex;
+  dst_pdcch_pdu->DurationSymbols = src_pdcch_pdu->DurationSymbols;
+  memcpy(dst_pdcch_pdu->FreqDomainResource, src_pdcch_pdu->FreqDomainResource, sizeof(src_pdcch_pdu->FreqDomainResource));
+  dst_pdcch_pdu->CceRegMappingType = src_pdcch_pdu->CceRegMappingType;
+  dst_pdcch_pdu->RegBundleSize = src_pdcch_pdu->RegBundleSize;
+  dst_pdcch_pdu->InterleaverSize = src_pdcch_pdu->InterleaverSize;
+  dst_pdcch_pdu->CoreSetType = src_pdcch_pdu->CoreSetType;
+  dst_pdcch_pdu->ShiftIndex = src_pdcch_pdu->ShiftIndex;
+  dst_pdcch_pdu->precoderGranularity = src_pdcch_pdu->precoderGranularity;
+  dst_pdcch_pdu->numDlDci = src_pdcch_pdu->numDlDci;
+  for (int i = 0; i < src_pdcch_pdu->numDlDci; ++i) {
+    dst_pdcch_pdu->dci_pdu[i] = src_pdcch_pdu->dci_pdu[i];
+  }
+}
+
+static void cp_nr_dl_tti_pdsch_pdu(nfapi_nr_dl_tti_pdsch_pdu_rel15_t* dst_pdsch_pdu,
+                                   const nfapi_nr_dl_tti_pdsch_pdu_rel15_t* src_pdsch_pdu)
+{
+  if (dst_pdsch_pdu == NULL || src_pdsch_pdu == NULL) {
+    return;
+  }
+  dst_pdsch_pdu->pduBitmap = src_pdsch_pdu->pduBitmap;
+  dst_pdsch_pdu->rnti = src_pdsch_pdu->rnti;
+  dst_pdsch_pdu->pduIndex = src_pdsch_pdu->pduIndex;
+  dst_pdsch_pdu->BWPSize = src_pdsch_pdu->BWPSize;
+  dst_pdsch_pdu->BWPStart = src_pdsch_pdu->BWPStart;
+  dst_pdsch_pdu->SubcarrierSpacing = src_pdsch_pdu->SubcarrierSpacing;
+  dst_pdsch_pdu->CyclicPrefix = src_pdsch_pdu->CyclicPrefix;
+  dst_pdsch_pdu->NrOfCodewords = src_pdsch_pdu->NrOfCodewords;
+  memcpy(dst_pdsch_pdu->targetCodeRate, src_pdsch_pdu->targetCodeRate, sizeof(src_pdsch_pdu->targetCodeRate));
+  memcpy(dst_pdsch_pdu->qamModOrder, src_pdsch_pdu->qamModOrder, sizeof(src_pdsch_pdu->qamModOrder));
+  memcpy(dst_pdsch_pdu->mcsIndex, src_pdsch_pdu->mcsIndex, sizeof(src_pdsch_pdu->mcsIndex));
+  memcpy(dst_pdsch_pdu->mcsTable, src_pdsch_pdu->mcsTable, sizeof(src_pdsch_pdu->mcsTable));
+  memcpy(dst_pdsch_pdu->rvIndex, src_pdsch_pdu->rvIndex, sizeof(src_pdsch_pdu->rvIndex));
+  memcpy(dst_pdsch_pdu->TBSize, src_pdsch_pdu->TBSize, sizeof(src_pdsch_pdu->TBSize));
+  dst_pdsch_pdu->dataScramblingId = src_pdsch_pdu->dataScramblingId;
+  dst_pdsch_pdu->nrOfLayers = src_pdsch_pdu->nrOfLayers;
+  dst_pdsch_pdu->transmissionScheme = src_pdsch_pdu->transmissionScheme;
+  dst_pdsch_pdu->refPoint = src_pdsch_pdu->refPoint;
+  dst_pdsch_pdu->dlDmrsSymbPos = src_pdsch_pdu->dlDmrsSymbPos;
+  dst_pdsch_pdu->dmrsConfigType = src_pdsch_pdu->dmrsConfigType;
+  dst_pdsch_pdu->dlDmrsScramblingId = src_pdsch_pdu->dlDmrsScramblingId;
+  dst_pdsch_pdu->SCID = src_pdsch_pdu->SCID;
+  dst_pdsch_pdu->numDmrsCdmGrpsNoData = src_pdsch_pdu->numDmrsCdmGrpsNoData;
+  dst_pdsch_pdu->dmrsPorts = src_pdsch_pdu->dmrsPorts;
+  dst_pdsch_pdu->resourceAlloc = src_pdsch_pdu->resourceAlloc;
+  memcpy(dst_pdsch_pdu->rbBitmap, src_pdsch_pdu->rbBitmap, sizeof(src_pdsch_pdu->rbBitmap));
+  dst_pdsch_pdu->rbStart = src_pdsch_pdu->rbStart;
+  dst_pdsch_pdu->rbSize = src_pdsch_pdu->rbSize;
+  dst_pdsch_pdu->VRBtoPRBMapping = src_pdsch_pdu->VRBtoPRBMapping;
+  dst_pdsch_pdu->StartSymbolIndex = src_pdsch_pdu->StartSymbolIndex;
+  dst_pdsch_pdu->NrOfSymbols = src_pdsch_pdu->NrOfSymbols;
+  dst_pdsch_pdu->PTRSPortIndex = src_pdsch_pdu->PTRSPortIndex;
+  dst_pdsch_pdu->PTRSTimeDensity = src_pdsch_pdu->PTRSTimeDensity;
+  dst_pdsch_pdu->PTRSFreqDensity = src_pdsch_pdu->PTRSFreqDensity;
+  dst_pdsch_pdu->PTRSReOffset = src_pdsch_pdu->PTRSReOffset;
+  dst_pdsch_pdu->nEpreRatioOfPDSCHToPTRS = src_pdsch_pdu->nEpreRatioOfPDSCHToPTRS;
+  dst_pdsch_pdu->precodingAndBeamforming = src_pdsch_pdu->precodingAndBeamforming;
+  dst_pdsch_pdu->maintenance_parms_v3 = src_pdsch_pdu->maintenance_parms_v3;
+}
+
+static void cp_nr_dl_tti_csi_rs_pdu(nfapi_nr_dl_tti_csi_rs_pdu_rel15_t* dst_csi_rs_pdu,
+                                    const nfapi_nr_dl_tti_csi_rs_pdu_rel15_t* src_csi_rs_pdu)
+{
+  if (dst_csi_rs_pdu == NULL || src_csi_rs_pdu == NULL) {
+    return;
+  }
+  dst_csi_rs_pdu->bwp_size = src_csi_rs_pdu->bwp_size;
+  dst_csi_rs_pdu->bwp_start = src_csi_rs_pdu->bwp_start;
+  dst_csi_rs_pdu->subcarrier_spacing = src_csi_rs_pdu->subcarrier_spacing;
+  dst_csi_rs_pdu->cyclic_prefix = src_csi_rs_pdu->cyclic_prefix;
+  dst_csi_rs_pdu->start_rb = src_csi_rs_pdu->start_rb;
+  dst_csi_rs_pdu->nr_of_rbs = src_csi_rs_pdu->nr_of_rbs;
+  dst_csi_rs_pdu->csi_type = src_csi_rs_pdu->csi_type;
+  dst_csi_rs_pdu->row = src_csi_rs_pdu->row;
+  dst_csi_rs_pdu->freq_domain = src_csi_rs_pdu->freq_domain;
+  dst_csi_rs_pdu->symb_l0 = src_csi_rs_pdu->symb_l0;
+  dst_csi_rs_pdu->symb_l1 = src_csi_rs_pdu->symb_l1;
+  dst_csi_rs_pdu->cdm_type = src_csi_rs_pdu->cdm_type;
+  dst_csi_rs_pdu->freq_density = src_csi_rs_pdu->freq_density;
+  dst_csi_rs_pdu->scramb_id = src_csi_rs_pdu->scramb_id;
+  dst_csi_rs_pdu->power_control_offset = src_csi_rs_pdu->power_control_offset;
+  dst_csi_rs_pdu->power_control_offset_ss = src_csi_rs_pdu->power_control_offset_ss;
+}
+
+static void cp_nr_dl_tti_ssb_pdu(nfapi_nr_dl_tti_ssb_pdu_rel15_t* dst_ssb_pdu, const nfapi_nr_dl_tti_ssb_pdu_rel15_t* src_ssb_pdu)
+{
+  if (dst_ssb_pdu == NULL || src_ssb_pdu == NULL) {
+    return;
+  }
+  dst_ssb_pdu->PhysCellId = src_ssb_pdu->PhysCellId;
+  dst_ssb_pdu->BetaPss = src_ssb_pdu->BetaPss;
+  dst_ssb_pdu->SsbBlockIndex = src_ssb_pdu->SsbBlockIndex;
+  dst_ssb_pdu->SsbSubcarrierOffset = src_ssb_pdu->SsbSubcarrierOffset;
+  dst_ssb_pdu->ssbOffsetPointA = src_ssb_pdu->ssbOffsetPointA;
+  dst_ssb_pdu->bchPayloadFlag = src_ssb_pdu->bchPayloadFlag;
+  dst_ssb_pdu->bchPayload = src_ssb_pdu->bchPayload;
+  dst_ssb_pdu->ssbRsrp = src_ssb_pdu->ssbRsrp;
+  dst_ssb_pdu->precoding_and_beamforming = src_ssb_pdu->precoding_and_beamforming;
+}
+static void cp_nr_dl_tti_req(nfapi_nr_dl_tti_request_t* dst, const nfapi_nr_dl_tti_request_t* src)
+{
+  if (dst == NULL || src == NULL) {
+    NFAPI_TRACE(NFAPI_TRACE_ERROR, "cp_nr_dl_tti_req: dst or src is NULL\n");
+    return;
+  }
+  dst->header = src->header;
+  dst->SFN = src->SFN;
+  dst->Slot = src->Slot;
+  // Copy dl_tti_request_body
+  dst->dl_tti_request_body.nPDUs = src->dl_tti_request_body.nPDUs;
+  dst->dl_tti_request_body.nGroup = src->dl_tti_request_body.nGroup;
+  // Iterate over dl_tti_pdu_list
+  for (int i = 0; i < dst->dl_tti_request_body.nPDUs; ++i) {
+    nfapi_nr_dl_tti_request_pdu_t* dst_pdu = &dst->dl_tti_request_body.dl_tti_pdu_list[i];
+    const nfapi_nr_dl_tti_request_pdu_t* src_pdu = &src->dl_tti_request_body.dl_tti_pdu_list[i];
+    dst_pdu->PDUType = src_pdu->PDUType;
+    dst_pdu->PDUSize = src_pdu->PDUSize;
+    // Copy union based on PDUType
+    switch (src_pdu->PDUType) {
+      case NFAPI_NR_DL_TTI_PDCCH_PDU_TYPE:
+        cp_nr_dl_tti_pdcch_pdu(&dst_pdu->pdcch_pdu.pdcch_pdu_rel15, &src_pdu->pdcch_pdu.pdcch_pdu_rel15);
+        break;
+      case NFAPI_NR_DL_TTI_PDSCH_PDU_TYPE:
+        cp_nr_dl_tti_pdsch_pdu(&dst_pdu->pdsch_pdu.pdsch_pdu_rel15, &src_pdu->pdsch_pdu.pdsch_pdu_rel15);
+        break;
+      case NFAPI_NR_DL_TTI_CSI_RS_PDU_TYPE:
+        cp_nr_dl_tti_csi_rs_pdu(&dst_pdu->csi_rs_pdu.csi_rs_pdu_rel15, &src_pdu->csi_rs_pdu.csi_rs_pdu_rel15);
+        break;
+      case NFAPI_NR_DL_TTI_SSB_PDU_TYPE:
+        cp_nr_dl_tti_ssb_pdu(&dst_pdu->ssb_pdu.ssb_pdu_rel15, &src_pdu->ssb_pdu.ssb_pdu_rel15);
+        break;
+    }
+  }
+  // Copy the nUe array
+  for (int i = 0; i < dst->dl_tti_request_body.nGroup; ++i) {
+    dst->dl_tti_request_body.nUe[i] = src->dl_tti_request_body.nUe[i];
+  }
+
+  // Copy the PduIdx array
+  for (int i = 0; i < dst->dl_tti_request_body.nPDUs; ++i) {
+    for (int j = 0; j < dst->dl_tti_request_body.nUe[i]; ++j) {
+      dst->dl_tti_request_body.PduIdx[i][j] = src->dl_tti_request_body.PduIdx[i][j];
+    }
+  }
+
+  // Copy vendor_extension
+  dst->vendor_extension = src->vendor_extension;
+}
+
 void pnf_handle_dl_tti_request(void* pRecvMsg, int recvMsgLen, pnf_p7_t* pnf_p7)
 {
-	//NFAPI_TRACE(NFAPI_TRACE_INFO, "DL_CONFIG.req Received\n");
-	nfapi_nr_dl_tti_request_t* req  = allocate_nfapi_dl_tti_request(pnf_p7);
-
-	if(req == NULL)
-	{
-		NFAPI_TRACE(NFAPI_TRACE_INFO, "failed to allocate nfapi_dl_tti_request structure\n");
-		return;
-	}
-	int unpack_result = nfapi_nr_p7_message_unpack(pRecvMsg, recvMsgLen, req, sizeof(nfapi_nr_dl_tti_request_t), &(pnf_p7->_public.codec_config));
+	// NFAPI_TRACE(NFAPI_TRACE_INFO, "DL_CONFIG.req Received\n");
+	nfapi_nr_dl_tti_request_t req;
+	int unpack_result = nfapi_nr_p7_message_unpack(pRecvMsg, recvMsgLen, &req, sizeof(nfapi_nr_dl_tti_request_t), &(pnf_p7->_public.codec_config));
 
 	if(unpack_result == 0)
 	{
@@ -1614,42 +1507,27 @@ void pnf_handle_dl_tti_request(void* pRecvMsg, int recvMsgLen, pnf_p7_t* pnf_p7)
 			return;
 		}
 
-        if(is_nr_p7_request_in_window(req->SFN,req->Slot, "dl_tti_request", pnf_p7))
-            {
-                uint32_t sfn_slot_dec = NFAPI_SFNSLOT2DEC(req->SFN,req->Slot);
-                uint8_t buffer_index = sfn_slot_dec % 20;
+        if(is_nr_p7_request_in_window(req.SFN,req.Slot, "dl_tti_request", pnf_p7))
+		{
+			uint32_t sfn_slot_dec = NFAPI_SFNSLOT2DEC(req.SFN,req.Slot);
+			uint8_t buffer_index = sfn_slot_dec % 20;
 
-                struct timespec t;
-                clock_gettime(CLOCK_MONOTONIC, &t);
+			struct timespec t;
+			clock_gettime(CLOCK_MONOTONIC, &t);
 
-                NFAPI_TRACE(NFAPI_TRACE_INFO,"%s() %ld.%09ld POPULATE DL_TTI_REQ current tx sfn/slot:%d.%d p7 msg sfn/slot: %d.%d buffer_index:%d\n", __FUNCTION__, t.tv_sec, t.tv_nsec, pnf_p7->sfn,pnf_p7->slot, req->SFN, req->Slot, buffer_index);
-
-			// if there is already an dl_tti_req make sure we free it.
-			if(pnf_p7->slot_buffer[buffer_index].dl_tti_req != 0)
-			{
-				NFAPI_TRACE(NFAPI_TRACE_NOTE, "%s() is_nr_p7_request_in_window()=TRUE buffer_index occupied - free it first sfn_slot:%d buffer_index:%d\n", __FUNCTION__, NFAPI_SFNSLOT2DEC(req->SFN,req->Slot), buffer_index);
-				//NFAPI_TRACE(NFAPI_TRACE_NOTE, "[%d] Freeing dl_config_req at index %d (%d/%d)", 
-				//			pMyPhyInfo->sfnSf, bufferIdx,
-				//			SFNSF2SFN(dreq->sfn_sf), SFNSF2SF(dreq->sfn_sf));
-				deallocate_nfapi_dl_tti_request(pnf_p7->slot_buffer[buffer_index].dl_tti_req, pnf_p7);
-			}
+			NFAPI_TRACE(NFAPI_TRACE_DEBUG,"%s() %ld.%09ld POPULATE DL_TTI_REQ current tx sfn/slot:%d.%d p7 msg sfn/slot: %d.%d buffer_index:%d\n", __FUNCTION__, t.tv_sec, t.tv_nsec, pnf_p7->sfn,pnf_p7->slot, req.SFN, req.Slot, buffer_index);
 
 			// filling dl_tti_request in slot buffer
-			pnf_p7->slot_buffer[buffer_index].sfn = req->SFN;
-			pnf_p7->slot_buffer[buffer_index].slot = req->Slot;
-			pnf_p7->slot_buffer[buffer_index].dl_tti_req = req;
+			pnf_p7->slot_buffer[buffer_index].sfn = req.SFN;
+			pnf_p7->slot_buffer[buffer_index].slot = req.Slot;
+			cp_nr_dl_tti_req(&pnf_p7->slot_buffer[buffer_index].dl_tti_req, &req);
 
 			pnf_p7->stats.dl_tti_ontime++;
 		}
 		else
 		{
-			//NFAPI_TRACE(NFAPI_TRACE_NOTE, "NOT storing dl_config_req SFN/SF %d\n", req->sfn_sf);
-			deallocate_nfapi_dl_tti_request(req, pnf_p7);
-
 			if(pnf_p7->_public.timing_info_mode_aperiodic)
-			{
 				pnf_p7->timing_info_aperiodic_send = 1;
-			}
 
 			pnf_p7->stats.dl_tti_late++;
 		} 
@@ -1662,7 +1540,6 @@ void pnf_handle_dl_tti_request(void* pRecvMsg, int recvMsgLen, pnf_p7_t* pnf_p7)
 	else
 	{
 		NFAPI_TRACE(NFAPI_TRACE_ERROR, "Failed to unpack dl_tti_req");
-		deallocate_nfapi_dl_tti_request(req, pnf_p7);
 	}
 }
 
@@ -1757,20 +1634,236 @@ void pnf_handle_dl_config_request(void* pRecvMsg, int recvMsgLen, pnf_p7_t* pnf_
 	}
 }
 
+void cp_nr_ul_tti_req_prach_pdu(const nfapi_nr_prach_pdu_t* src_prach_pdu, nfapi_nr_prach_pdu_t* dst_prach_pdu)
+{
+  dst_prach_pdu->phys_cell_id = src_prach_pdu->phys_cell_id;
+  dst_prach_pdu->num_prach_ocas = src_prach_pdu->num_prach_ocas;
+  dst_prach_pdu->prach_format = src_prach_pdu->prach_format;
+  dst_prach_pdu->num_ra = src_prach_pdu->num_ra;
+  dst_prach_pdu->prach_start_symbol = src_prach_pdu->prach_start_symbol;
+  dst_prach_pdu->num_cs = src_prach_pdu->num_cs;
+  dst_prach_pdu->beamforming.trp_scheme = src_prach_pdu->beamforming.trp_scheme;
+  dst_prach_pdu->beamforming.num_prgs = src_prach_pdu->beamforming.num_prgs;
+  dst_prach_pdu->beamforming.prg_size = src_prach_pdu->beamforming.prg_size;
+  dst_prach_pdu->beamforming.dig_bf_interface = src_prach_pdu->beamforming.dig_bf_interface;
+  if (src_prach_pdu->beamforming.num_prgs > 0) {
+    dst_prach_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx =
+        src_prach_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx;
+  }
+}
+void cp_nr_ul_tti_req_pusch_pdu(const nfapi_nr_pusch_pdu_t* src_pusch_pdu, nfapi_nr_pusch_pdu_t* dst_pusch_pdu)
+{
+  // Copy common fields
+  dst_pusch_pdu->pdu_bit_map = src_pusch_pdu->pdu_bit_map;
+  dst_pusch_pdu->rnti = src_pusch_pdu->rnti;
+  dst_pusch_pdu->handle = src_pusch_pdu->handle;
+  dst_pusch_pdu->bwp_size = src_pusch_pdu->bwp_size;
+  dst_pusch_pdu->bwp_start = src_pusch_pdu->bwp_start;
+  dst_pusch_pdu->subcarrier_spacing = src_pusch_pdu->subcarrier_spacing;
+  dst_pusch_pdu->cyclic_prefix = src_pusch_pdu->cyclic_prefix;
+  dst_pusch_pdu->target_code_rate = src_pusch_pdu->target_code_rate;
+  dst_pusch_pdu->qam_mod_order = src_pusch_pdu->qam_mod_order;
+  dst_pusch_pdu->mcs_index = src_pusch_pdu->mcs_index;
+  dst_pusch_pdu->mcs_table = src_pusch_pdu->mcs_table;
+  dst_pusch_pdu->transform_precoding = src_pusch_pdu->transform_precoding;
+  dst_pusch_pdu->data_scrambling_id = src_pusch_pdu->data_scrambling_id;
+  dst_pusch_pdu->nrOfLayers = src_pusch_pdu->nrOfLayers;
+  dst_pusch_pdu->ul_dmrs_symb_pos = src_pusch_pdu->ul_dmrs_symb_pos;
+  dst_pusch_pdu->dmrs_config_type = src_pusch_pdu->dmrs_config_type;
+  dst_pusch_pdu->ul_dmrs_scrambling_id = src_pusch_pdu->ul_dmrs_scrambling_id;
+  dst_pusch_pdu->pusch_identity = src_pusch_pdu->pusch_identity;
+  dst_pusch_pdu->scid = src_pusch_pdu->scid;
+  dst_pusch_pdu->num_dmrs_cdm_grps_no_data = src_pusch_pdu->num_dmrs_cdm_grps_no_data;
+  dst_pusch_pdu->dmrs_ports = src_pusch_pdu->dmrs_ports;
+  dst_pusch_pdu->resource_alloc = src_pusch_pdu->resource_alloc;
+  memcpy(dst_pusch_pdu->rb_bitmap, src_pusch_pdu->rb_bitmap, sizeof(src_pusch_pdu->rb_bitmap));
+  dst_pusch_pdu->rb_start = src_pusch_pdu->rb_start;
+  dst_pusch_pdu->rb_size = src_pusch_pdu->rb_size;
+  dst_pusch_pdu->vrb_to_prb_mapping = src_pusch_pdu->vrb_to_prb_mapping;
+  dst_pusch_pdu->frequency_hopping = src_pusch_pdu->frequency_hopping;
+  dst_pusch_pdu->tx_direct_current_location = src_pusch_pdu->tx_direct_current_location;
+  dst_pusch_pdu->uplink_frequency_shift_7p5khz = src_pusch_pdu->uplink_frequency_shift_7p5khz;
+  dst_pusch_pdu->start_symbol_index = src_pusch_pdu->start_symbol_index;
+  dst_pusch_pdu->nr_of_symbols = src_pusch_pdu->nr_of_symbols;
+
+  // Copy optional data if present
+  if (src_pusch_pdu->pdu_bit_map & 0x01) // data
+    memcpy(&dst_pusch_pdu->pusch_data, &src_pusch_pdu->pusch_data, sizeof(nfapi_nr_pusch_data_t));
+  if (src_pusch_pdu->pdu_bit_map & 0x10) // UCI
+    memcpy(&dst_pusch_pdu->pusch_uci, &src_pusch_pdu->pusch_uci, sizeof(nfapi_nr_pusch_uci_t));
+  if (src_pusch_pdu->pdu_bit_map & 0x100) { // PTRS
+    // Copy the PUSCH PTRS fields directly
+    dst_pusch_pdu->pusch_ptrs.num_ptrs_ports = src_pusch_pdu->pusch_ptrs.num_ptrs_ports;
+    dst_pusch_pdu->pusch_ptrs.ptrs_time_density = src_pusch_pdu->pusch_ptrs.ptrs_time_density;
+    dst_pusch_pdu->pusch_ptrs.ptrs_freq_density = src_pusch_pdu->pusch_ptrs.ptrs_freq_density;
+    dst_pusch_pdu->pusch_ptrs.ul_ptrs_power = src_pusch_pdu->pusch_ptrs.ul_ptrs_power;
+    for (int j = 0; j < src_pusch_pdu->pusch_ptrs.num_ptrs_ports; j++) {
+      dst_pusch_pdu->pusch_ptrs.ptrs_ports_list[j].ptrs_port_index = src_pusch_pdu->pusch_ptrs.ptrs_ports_list[j].ptrs_port_index;
+      dst_pusch_pdu->pusch_ptrs.ptrs_ports_list[j].ptrs_dmrs_port = src_pusch_pdu->pusch_ptrs.ptrs_ports_list[j].ptrs_dmrs_port;
+      dst_pusch_pdu->pusch_ptrs.ptrs_ports_list[j].ptrs_re_offset = src_pusch_pdu->pusch_ptrs.ptrs_ports_list[j].ptrs_re_offset;
+    }
+  }
+  if (src_pusch_pdu->pdu_bit_map & 0x1000) // DFTS
+    memcpy(&dst_pusch_pdu->dfts_ofdm, &src_pusch_pdu->dfts_ofdm, sizeof(nfapi_nr_dfts_ofdm_t));
+
+  dst_pusch_pdu->beamforming.trp_scheme = src_pusch_pdu->beamforming.trp_scheme;
+  dst_pusch_pdu->beamforming.num_prgs = src_pusch_pdu->beamforming.num_prgs;
+  dst_pusch_pdu->beamforming.prg_size = src_pusch_pdu->beamforming.prg_size;
+  dst_pusch_pdu->beamforming.dig_bf_interface = src_pusch_pdu->beamforming.dig_bf_interface;
+  if (src_pusch_pdu->beamforming.num_prgs > 0)
+    dst_pusch_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx =
+        src_pusch_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx;
+
+  memcpy(&dst_pusch_pdu->maintenance_parms_v3,
+         &src_pusch_pdu->maintenance_parms_v3,
+         sizeof(nfapi_v3_pdsch_maintenance_parameters_t));
+}
+
+void cp_nr_ul_tti_req_pucch_pdu(const nfapi_nr_pucch_pdu_t* src_pucch_pdu, nfapi_nr_pucch_pdu_t* dst_pucch_pdu)
+{
+  // Copy common fields
+  dst_pucch_pdu->rnti = src_pucch_pdu->rnti;
+  dst_pucch_pdu->handle = src_pucch_pdu->handle;
+  dst_pucch_pdu->bwp_size = src_pucch_pdu->bwp_size;
+  dst_pucch_pdu->bwp_start = src_pucch_pdu->bwp_start;
+  dst_pucch_pdu->subcarrier_spacing = src_pucch_pdu->subcarrier_spacing;
+  dst_pucch_pdu->cyclic_prefix = src_pucch_pdu->cyclic_prefix;
+  dst_pucch_pdu->format_type = src_pucch_pdu->format_type;
+  dst_pucch_pdu->multi_slot_tx_indicator = src_pucch_pdu->multi_slot_tx_indicator;
+  dst_pucch_pdu->pi_2bpsk = src_pucch_pdu->pi_2bpsk;
+  dst_pucch_pdu->prb_start = src_pucch_pdu->prb_start;
+  dst_pucch_pdu->prb_size = src_pucch_pdu->prb_size;
+  dst_pucch_pdu->start_symbol_index = src_pucch_pdu->start_symbol_index;
+  dst_pucch_pdu->nr_of_symbols = src_pucch_pdu->nr_of_symbols;
+  dst_pucch_pdu->freq_hop_flag = src_pucch_pdu->freq_hop_flag;
+  dst_pucch_pdu->second_hop_prb = src_pucch_pdu->second_hop_prb;
+  dst_pucch_pdu->group_hop_flag = src_pucch_pdu->group_hop_flag;
+  dst_pucch_pdu->sequence_hop_flag = src_pucch_pdu->sequence_hop_flag;
+  dst_pucch_pdu->hopping_id = src_pucch_pdu->hopping_id;
+  dst_pucch_pdu->initial_cyclic_shift = src_pucch_pdu->initial_cyclic_shift;
+  dst_pucch_pdu->data_scrambling_id = src_pucch_pdu->data_scrambling_id;
+  dst_pucch_pdu->time_domain_occ_idx = src_pucch_pdu->time_domain_occ_idx;
+  dst_pucch_pdu->pre_dft_occ_idx = src_pucch_pdu->pre_dft_occ_idx;
+  dst_pucch_pdu->pre_dft_occ_len = src_pucch_pdu->pre_dft_occ_len;
+  dst_pucch_pdu->add_dmrs_flag = src_pucch_pdu->add_dmrs_flag;
+  dst_pucch_pdu->dmrs_scrambling_id = src_pucch_pdu->dmrs_scrambling_id;
+  dst_pucch_pdu->dmrs_cyclic_shift = src_pucch_pdu->dmrs_cyclic_shift;
+  dst_pucch_pdu->sr_flag = src_pucch_pdu->sr_flag;
+  dst_pucch_pdu->bit_len_harq = src_pucch_pdu->bit_len_harq;
+  dst_pucch_pdu->bit_len_csi_part1 = src_pucch_pdu->bit_len_csi_part1;
+  dst_pucch_pdu->bit_len_csi_part2 = src_pucch_pdu->bit_len_csi_part2;
+
+  dst_pucch_pdu->beamforming.trp_scheme = src_pucch_pdu->beamforming.trp_scheme;
+  dst_pucch_pdu->beamforming.num_prgs = src_pucch_pdu->beamforming.num_prgs;
+  dst_pucch_pdu->beamforming.prg_size = src_pucch_pdu->beamforming.prg_size;
+  dst_pucch_pdu->beamforming.dig_bf_interface = src_pucch_pdu->beamforming.dig_bf_interface;
+
+  if (src_pucch_pdu->beamforming.num_prgs > 0)
+    dst_pucch_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx =
+        src_pucch_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx;
+}
+
+void cp_nr_ul_tti_req_srs_pdu(const nfapi_nr_srs_pdu_t* src_srs_pdu, nfapi_nr_srs_pdu_t* dst_srs_pdu)
+{
+  dst_srs_pdu->rnti = src_srs_pdu->rnti;
+  dst_srs_pdu->handle = src_srs_pdu->handle;
+  dst_srs_pdu->bwp_size = src_srs_pdu->bwp_size;
+  dst_srs_pdu->bwp_start = src_srs_pdu->bwp_start;
+  dst_srs_pdu->subcarrier_spacing = src_srs_pdu->subcarrier_spacing;
+  dst_srs_pdu->cyclic_prefix = src_srs_pdu->cyclic_prefix;
+  dst_srs_pdu->num_ant_ports = src_srs_pdu->num_ant_ports;
+  dst_srs_pdu->num_symbols = src_srs_pdu->num_symbols;
+  dst_srs_pdu->num_repetitions = src_srs_pdu->num_repetitions;
+  dst_srs_pdu->time_start_position = src_srs_pdu->time_start_position;
+  dst_srs_pdu->config_index = src_srs_pdu->config_index;
+  dst_srs_pdu->sequence_id = src_srs_pdu->sequence_id;
+  dst_srs_pdu->bandwidth_index = src_srs_pdu->bandwidth_index;
+  dst_srs_pdu->comb_size = src_srs_pdu->comb_size;
+  dst_srs_pdu->comb_offset = src_srs_pdu->comb_offset;
+  dst_srs_pdu->cyclic_shift = src_srs_pdu->cyclic_shift;
+  dst_srs_pdu->frequency_position = src_srs_pdu->frequency_position;
+  dst_srs_pdu->frequency_shift = src_srs_pdu->frequency_shift;
+  dst_srs_pdu->frequency_hopping = src_srs_pdu->frequency_hopping;
+  dst_srs_pdu->group_or_sequence_hopping = src_srs_pdu->group_or_sequence_hopping;
+  dst_srs_pdu->resource_type = src_srs_pdu->resource_type;
+  dst_srs_pdu->t_srs = src_srs_pdu->t_srs;
+  dst_srs_pdu->t_offset = src_srs_pdu->t_offset;
+  // beamforming
+  dst_srs_pdu->beamforming.trp_scheme = src_srs_pdu->beamforming.trp_scheme;
+  dst_srs_pdu->beamforming.num_prgs = src_srs_pdu->beamforming.num_prgs;
+  dst_srs_pdu->beamforming.prg_size = src_srs_pdu->beamforming.prg_size;
+  dst_srs_pdu->beamforming.dig_bf_interface = src_srs_pdu->beamforming.dig_bf_interface;
+  dst_srs_pdu->beamforming.prgs_list = src_srs_pdu->beamforming.prgs_list;
+  if (src_srs_pdu->beamforming.num_prgs > 0)
+    dst_srs_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx =
+        src_srs_pdu->beamforming.prgs_list->dig_bf_interface_list->beam_idx;
+
+  // srs_parameters_v4
+  dst_srs_pdu->srs_parameters_v4.srs_bandwidth_size = src_srs_pdu->srs_parameters_v4.srs_bandwidth_size;
+  dst_srs_pdu->srs_parameters_v4.symbol_list->srs_bandwidth_start = src_srs_pdu->srs_parameters_v4.symbol_list->srs_bandwidth_start;
+  dst_srs_pdu->srs_parameters_v4.symbol_list->sequence_group = src_srs_pdu->srs_parameters_v4.symbol_list->sequence_group;
+  dst_srs_pdu->srs_parameters_v4.symbol_list->sequence_number = src_srs_pdu->srs_parameters_v4.symbol_list->sequence_number;
+  dst_srs_pdu->srs_parameters_v4.usage = src_srs_pdu->srs_parameters_v4.usage;
+  memcpy(dst_srs_pdu->srs_parameters_v4.report_type,
+         src_srs_pdu->srs_parameters_v4.report_type,
+         sizeof(src_srs_pdu->srs_parameters_v4.report_type));
+  dst_srs_pdu->srs_parameters_v4.singular_Value_representation = src_srs_pdu->srs_parameters_v4.singular_Value_representation;
+  dst_srs_pdu->srs_parameters_v4.iq_representation = src_srs_pdu->srs_parameters_v4.iq_representation;
+  dst_srs_pdu->srs_parameters_v4.prg_size = src_srs_pdu->srs_parameters_v4.prg_size;
+  dst_srs_pdu->srs_parameters_v4.num_total_ue_antennas = src_srs_pdu->srs_parameters_v4.num_total_ue_antennas;
+  dst_srs_pdu->srs_parameters_v4.ue_antennas_in_this_srs_resource_set =
+      src_srs_pdu->srs_parameters_v4.ue_antennas_in_this_srs_resource_set;
+  dst_srs_pdu->srs_parameters_v4.sampled_ue_antennas = src_srs_pdu->srs_parameters_v4.sampled_ue_antennas;
+  dst_srs_pdu->srs_parameters_v4.report_scope = src_srs_pdu->srs_parameters_v4.report_scope;
+  dst_srs_pdu->srs_parameters_v4.num_ul_spatial_streams_ports = src_srs_pdu->srs_parameters_v4.num_ul_spatial_streams_ports;
+  memcpy(dst_srs_pdu->srs_parameters_v4.Ul_spatial_stream_ports,
+         src_srs_pdu->srs_parameters_v4.Ul_spatial_stream_ports,
+         sizeof(src_srs_pdu->srs_parameters_v4.Ul_spatial_stream_ports));
+}
+
+static void cp_nr_ul_tti_req(nfapi_nr_ul_tti_request_t* dst, const nfapi_nr_ul_tti_request_t* src)
+{
+  dst->header = src->header;
+  dst->SFN = src->SFN;
+  dst->Slot = src->Slot;
+  dst->n_pdus = src->n_pdus;
+  dst->rach_present = src->rach_present;
+  dst->n_ulsch = src->n_ulsch;
+  dst->n_ulcch = src->n_ulcch;
+  dst->n_group = src->n_group;
+  // LOG_I(PHY,"cp_nr_ul_tti_req: dst->n_pdus=%d\n", dst->n_pdus);
+  for (int i = 0; i < dst->n_pdus; ++i) {
+    dst->pdus_list[i].pdu_type = src->pdus_list[i].pdu_type;
+    dst->pdus_list[i].pdu_size = src->pdus_list[i].pdu_size;
+    switch (src->pdus_list[i].pdu_type) {
+      case 0: // PRACH PDU
+        cp_nr_ul_tti_req_prach_pdu(&src->pdus_list[i].prach_pdu, &dst->pdus_list[i].prach_pdu);
+        break;
+      case 1: // PUSCH PDU
+        cp_nr_ul_tti_req_pusch_pdu(&src->pdus_list[i].pusch_pdu, &dst->pdus_list[i].pusch_pdu);
+        break;
+      case 2: // PUCCH PDU
+        cp_nr_ul_tti_req_pucch_pdu(&src->pdus_list[i].pucch_pdu, &dst->pdus_list[i].pucch_pdu);
+        break;
+      case 3: // SRS PDU
+        cp_nr_ul_tti_req_srs_pdu(&src->pdus_list[i].srs_pdu, &dst->pdus_list[i].srs_pdu);
+        break;
+    }
+  }
+  for (int i = 0; i < dst->n_group; ++i) {
+    dst->groups_list[i].n_ue = src->groups_list[i].n_ue;
+    for (int j = 0; j < src->groups_list[i].n_ue; ++j) {
+      dst->groups_list[i].ue_list[j].pdu_idx = src->groups_list[i].ue_list[j].pdu_idx;
+    }
+  }
+}
 
 void pnf_handle_ul_tti_request(void* pRecvMsg, int recvMsgLen, pnf_p7_t* pnf_p7)
 {
 	//NFAPI_TRACE(NFAPI_TRACE_INFO, "UL_CONFIG.req Received\n");
 
-	nfapi_nr_ul_tti_request_t* req  = allocate_nfapi_ul_tti_request(pnf_p7);
-
-	if(req == NULL)
-	{
-		NFAPI_TRACE(NFAPI_TRACE_INFO, "failed to allocate nfapi_ul_tti_request structure\n");
-		return;
-	}
-
-	int unpack_result = nfapi_nr_p7_message_unpack(pRecvMsg, recvMsgLen, req, sizeof(nfapi_nr_ul_tti_request_t), &(pnf_p7->_public.codec_config));
+	nfapi_nr_ul_tti_request_t req;
+	int unpack_result = nfapi_nr_p7_message_unpack(pRecvMsg, recvMsgLen, &req, sizeof(nfapi_nr_ul_tti_request_t), &(pnf_p7->_public.codec_config));
 
 	if(unpack_result == 0)
 	{
@@ -1780,42 +1873,28 @@ void pnf_handle_ul_tti_request(void* pRecvMsg, int recvMsgLen, pnf_p7_t* pnf_p7)
 			return;
 		}
 
-		if(is_nr_p7_request_in_window(req->SFN,req->Slot, "ul_tti_request", pnf_p7))
+		if(is_nr_p7_request_in_window(req.SFN,req.Slot, "ul_tti_request", pnf_p7))
 		{
-			uint32_t sfn_slot_dec = NFAPI_SFNSLOT2DEC(req->SFN,req->Slot);
+			uint32_t sfn_slot_dec = NFAPI_SFNSLOT2DEC(req.SFN,req.Slot);
 			uint8_t buffer_index = (sfn_slot_dec % 20);
 
                         struct timespec t;
                         clock_gettime(CLOCK_MONOTONIC, &t);
-
-                        NFAPI_TRACE(NFAPI_TRACE_INFO,"%s() %ld.%09ld POPULATE UL_TTI_REQ current tx sfn/slot:%d.%d p7 msg sfn/slot: %d.%d buffer_index:%d\n", __FUNCTION__, t.tv_sec, t.tv_nsec, pnf_p7->sfn,pnf_p7->slot, req->SFN, req->Slot, buffer_index);
-
-			if(pnf_p7->slot_buffer[buffer_index].ul_tti_req != 0)
-			{
-				//NFAPI_TRACE(NFAPI_TRACE_NOTE, "[%d] Freeing ul_config_req at index %d (%d/%d)", 
-				//			pMyPhyInfo->sfnSf, bufferIdx,
-				//			SFNSF2SFN(dreq->sfn_sf), SFNSF2SF(dreq->sfn_sf));
-
-				deallocate_nfapi_ul_tti_request(pnf_p7->slot_buffer[buffer_index].ul_tti_req, pnf_p7);
-			}
+                        NFAPI_TRACE(NFAPI_TRACE_DEBUG,"%s() %ld.%09ld POPULATE UL_TTI_REQ current tx sfn/slot:%d.%d p7 msg sfn/slot: %d.%d buffer_index:%d\n", __FUNCTION__, t.tv_sec, t.tv_nsec, pnf_p7->sfn,pnf_p7->slot, req.SFN, req.Slot, buffer_index);
 			
 			//filling slot buffer
 
-			pnf_p7->slot_buffer[buffer_index].sfn = req->SFN;
-			pnf_p7->slot_buffer[buffer_index].slot = req->Slot;
-			pnf_p7->slot_buffer[buffer_index].ul_tti_req = req;
+			pnf_p7->slot_buffer[buffer_index].sfn = req.SFN;
+			pnf_p7->slot_buffer[buffer_index].slot = req.Slot;
+			cp_nr_ul_tti_req(&pnf_p7->slot_buffer[buffer_index].ul_tti_req, &req);
 			
 			pnf_p7->stats.ul_tti_ontime++;
 		}
 		else
 		{
-			NFAPI_TRACE(NFAPI_TRACE_NOTE, "[%d] NOT storing ul_tti_req OUTSIDE OF TRANSMIT BUFFER WINDOW SFN/SLOT %d\n", NFAPI_SFNSLOT2DEC(pnf_p7->sfn,pnf_p7->slot), NFAPI_SFNSLOT2DEC(req->SFN,req->Slot));
-			deallocate_nfapi_ul_tti_request(req, pnf_p7);
-
+			NFAPI_TRACE(NFAPI_TRACE_NOTE, "[%d] NOT storing ul_tti_req OUTSIDE OF TRANSMIT BUFFER WINDOW SFN/SLOT %d\n", NFAPI_SFNSLOT2DEC(pnf_p7->sfn,pnf_p7->slot), NFAPI_SFNSLOT2DEC(req.SFN,req.Slot));
 			if(pnf_p7->_public.timing_info_mode_aperiodic)
-			{
 				pnf_p7->timing_info_aperiodic_send = 1;
-			}
 
 			pnf_p7->stats.ul_tti_late++;
 		}
@@ -1829,7 +1908,6 @@ void pnf_handle_ul_tti_request(void* pRecvMsg, int recvMsgLen, pnf_p7_t* pnf_p7)
 	else
 	{
 		NFAPI_TRACE(NFAPI_TRACE_ERROR, "Failed to unpack ul_tti_req\n");
-		deallocate_nfapi_ul_tti_request(req, pnf_p7);
 	}
 }
 
@@ -1905,20 +1983,28 @@ void pnf_handle_ul_config_request(void* pRecvMsg, int recvMsgLen, pnf_p7_t* pnf_
 	}
 }
 
+static void cp_nr_ul_dci_req(nfapi_nr_ul_dci_request_t* dst, const nfapi_nr_ul_dci_request_t* src)
+{
+  dst->header = src->header;
+  dst->SFN = src->SFN;
+  dst->Slot = src->Slot;
+  dst->numPdus = src->numPdus;
+
+  for (int i = 0; i < dst->numPdus; ++i) {
+    nfapi_nr_ul_dci_request_pdus_t* dst_pdu = &dst->ul_dci_pdu_list[i];
+    const nfapi_nr_ul_dci_request_pdus_t* src_pdu = &src->ul_dci_pdu_list[i];
+
+    dst_pdu->PDUType = src_pdu->PDUType;
+    dst_pdu->PDUSize = src_pdu->PDUSize;
+    dst_pdu->pdcch_pdu = src_pdu->pdcch_pdu;
+  }
+}
 
 void pnf_handle_ul_dci_request(void* pRecvMsg, int recvMsgLen, pnf_p7_t* pnf_p7)
 {
-	//NFAPI_TRACE(NFAPI_TRACE_INFO, "HI_DCI0.req Received\n");
+	nfapi_nr_ul_dci_request_t req;
 
-	nfapi_nr_ul_dci_request_t* req  = allocate_nfapi_ul_dci_request(pnf_p7);
-
-	if(req == NULL)
-	{
-		NFAPI_TRACE(NFAPI_TRACE_INFO, "failed to allocate nfapi_ul_dci_request structure\n");
-		return;
-	}
-
-	int unpack_result = nfapi_nr_p7_message_unpack(pRecvMsg, recvMsgLen, req, sizeof(nfapi_nr_ul_dci_request_t), &pnf_p7->_public.codec_config);
+	int unpack_result = nfapi_nr_p7_message_unpack(pRecvMsg, recvMsgLen, &req, sizeof(nfapi_nr_ul_dci_request_t), &pnf_p7->_public.codec_config);
 
 	if(unpack_result == 0)
 	{
@@ -1928,31 +2014,20 @@ void pnf_handle_ul_dci_request(void* pRecvMsg, int recvMsgLen, pnf_p7_t* pnf_p7)
 			return;
 		}
 
-		if(is_nr_p7_request_in_window(req->SFN,req->Slot,"ul_dci_request", pnf_p7))
+		if(is_nr_p7_request_in_window(req.SFN,req.Slot,"ul_dci_request", pnf_p7))
 		{
-			uint32_t sfn_slot_dec = NFAPI_SFNSLOT2DEC(req->SFN,req->Slot);
+			uint32_t sfn_slot_dec = NFAPI_SFNSLOT2DEC(req.SFN,req.Slot);
 			uint8_t buffer_index = sfn_slot_dec % 20;
 
-			if(pnf_p7->slot_buffer[buffer_index].ul_dci_req!= 0)
-			{
-				//NFAPI_TRACE(NFAPI_TRACE_NOTE, "[%d] Freeing hi_dci0_req at index %d (%d/%d)", 
-				//			pMyPhyInfo->sfnSf, bufferIdx,
-				//			SFNSF2SFN(dreq->sfn_sf), SFNSF2SF(dreq->sfn_sf));
+			pnf_p7->slot_buffer[buffer_index].sfn = req.SFN;
+			cp_nr_ul_dci_req(&pnf_p7->slot_buffer[buffer_index].ul_dci_req, &req);
 
-				deallocate_nfapi_ul_dci_request(pnf_p7->slot_buffer[buffer_index].ul_dci_req, pnf_p7);
-			}
-
-			pnf_p7->slot_buffer[buffer_index].sfn = req->SFN;
-			pnf_p7->slot_buffer[buffer_index].ul_dci_req = req;
 
 			pnf_p7->stats.ul_dci_ontime++;
 			
 		}
 		else
 		{
-			//NFAPI_TRACE(NFAPI_TRACE_NOTE, "[%d] NOT storing hi_dci0_req SFN/SF %d/%d\n", pMyPhyInfo->sfnSf, SFNSF2SFN(req->sfn_sf), SFNSF2SF(req->sfn_sf));
-			deallocate_nfapi_ul_dci_request(req, pnf_p7);
-
 			if(pnf_p7->_public.timing_info_mode_aperiodic)
 			{
 				pnf_p7->timing_info_aperiodic_send = 1;
@@ -1970,7 +2045,6 @@ void pnf_handle_ul_dci_request(void* pRecvMsg, int recvMsgLen, pnf_p7_t* pnf_p7)
 	else
 	{
 		NFAPI_TRACE(NFAPI_TRACE_ERROR, "Failed to unpack UL DCI req\n");
-		deallocate_nfapi_ul_dci_request(req, pnf_p7);
 	}
 }
 
@@ -2045,20 +2119,35 @@ void pnf_handle_hi_dci0_request(void* pRecvMsg, int recvMsgLen, pnf_p7_t* pnf_p7
 	}
 }
 
+static void cp_nr_tx_data_req(nfapi_nr_tx_data_request_t *dst, const nfapi_nr_tx_data_request_t *src)
+{
+  dst->header = src->header;
+  dst->SFN = src->SFN;
+  dst->Slot = src->Slot;
+  dst->Number_of_PDUs = src->Number_of_PDUs;
+  for (int i = 0; i < dst->Number_of_PDUs; ++i) {
+    nfapi_nr_pdu_t *dst_pdu = &dst->pdu_list[i];
+    const nfapi_nr_pdu_t *src_pdu = &src->pdu_list[i];
+    dst_pdu->PDU_length = src_pdu->PDU_length;
+    dst_pdu->PDU_index = src_pdu->PDU_index;
+    dst_pdu->num_TLV = src_pdu->num_TLV;
+    for (int j = 0; j < dst->pdu_list[i].num_TLV; ++j) {
+      nfapi_nr_tx_data_request_tlv_t *dst_tlv = &dst_pdu->TLVs[j];
+      const nfapi_nr_tx_data_request_tlv_t *src_tlv = &src_pdu->TLVs[j];
+      dst_tlv->tag = src_tlv->tag;
+      dst_tlv->length = src_tlv->length;
+      memcpy(dst_tlv->value.direct, src_tlv->value.direct, dst_tlv->length);
+    }
+  }
+}
 
 void pnf_handle_tx_data_request(void* pRecvMsg, int recvMsgLen, pnf_p7_t* pnf_p7)
 {
 	//NFAPI_TRACE(NFAPI_TRACE_INFO, "TX.req Received\n");
 	
-	nfapi_nr_tx_data_request_t* req = allocate_nfapi_tx_data_request(pnf_p7);
+	nfapi_nr_tx_data_request_t req;
 
-	if(req == NULL)
-	{
-		NFAPI_TRACE(NFAPI_TRACE_INFO, "failed to allocate nfapi_tx_request structure\n");
-		return;
-	}
-
-	int unpack_result = nfapi_nr_p7_message_unpack(pRecvMsg, recvMsgLen, req, sizeof(nfapi_nr_tx_data_request_t), &pnf_p7->_public.codec_config);
+	int unpack_result = nfapi_nr_p7_message_unpack(pRecvMsg, recvMsgLen, &req, sizeof(nfapi_nr_tx_data_request_t), &pnf_p7->_public.codec_config);
 	if(unpack_result == 0)
 	{
 		if(pthread_mutex_lock(&(pnf_p7->mutex)) != 0)
@@ -2067,9 +2156,9 @@ void pnf_handle_tx_data_request(void* pRecvMsg, int recvMsgLen, pnf_p7_t* pnf_p7
 			return;
 		}
 
-		if(is_nr_p7_request_in_window(req->SFN, req->Slot,"tx_request", pnf_p7))
+		if(is_nr_p7_request_in_window(req.SFN, req.Slot,"tx_request", pnf_p7))
 		{
-			uint32_t sfn_slot_dec = NFAPI_SFNSLOT2DEC(req->SFN,req->Slot);
+			uint32_t sfn_slot_dec = NFAPI_SFNSLOT2DEC(req.SFN,req.Slot);
 			uint8_t buffer_index = sfn_slot_dec % 20;
 
                         struct timespec t;
@@ -2083,26 +2172,16 @@ void pnf_handle_tx_data_request(void* pRecvMsg, int recvMsgLen, pnf_p7_t* pnf_p7
                             req->tx_request_body.number_of_pdus);
 #endif
 
-			if(pnf_p7->slot_buffer[buffer_index].tx_data_req != 0)
-			{
-				//NFAPI_TRACE(NFAPI_TRACE_NOTE, "[%d] Freeing tx_req at index %d (%d/%d)", 
-				//			pMyPhyInfo->sfnSf, bufferIdx,
-				//			SFNSF2SFN(dreq->sfn_sf), SFNSF2SF(dreq->sfn_sf));
 
-				deallocate_nfapi_tx_data_request(pnf_p7->slot_buffer[buffer_index].tx_data_req, pnf_p7);
-			}
-
-			pnf_p7->slot_buffer[buffer_index].sfn = req->SFN;
-			pnf_p7->slot_buffer[buffer_index].slot = req->Slot;
-			pnf_p7->slot_buffer[buffer_index].tx_data_req = req;
+			pnf_p7->slot_buffer[buffer_index].sfn = req.SFN;
+			pnf_p7->slot_buffer[buffer_index].slot = req.Slot;
+      cp_nr_tx_data_req(&pnf_p7->slot_buffer[buffer_index].tx_data_req, &req);
 
 			pnf_p7->stats.tx_data_ontime++;
 		}
 		else
 		{
-                  NFAPI_TRACE(NFAPI_TRACE_INFO,"%s() TX_DATA_REQUEST Request is outside of window REQ:SFN_SLOT:%d CURR:SFN_SLOT:%d\n", __FUNCTION__, NFAPI_SFNSLOT2DEC(req->SFN,req->Slot), NFAPI_SFNSLOT2DEC(pnf_p7->sfn,pnf_p7->slot));
-
-			deallocate_nfapi_tx_data_request(req, pnf_p7);
+                  NFAPI_TRACE(NFAPI_TRACE_INFO,"%s() TX_DATA_REQUEST Request is outside of window REQ:SFN_SLOT:%d CURR:SFN_SLOT:%d\n", __FUNCTION__, NFAPI_SFNSLOT2DEC(req.SFN,req.Slot), NFAPI_SFNSLOT2DEC(pnf_p7->sfn,pnf_p7->slot));
 
 			if(pnf_p7->_public.timing_info_mode_aperiodic)
 			{
@@ -2117,11 +2196,7 @@ void pnf_handle_tx_data_request(void* pRecvMsg, int recvMsgLen, pnf_p7_t* pnf_p7
 			NFAPI_TRACE(NFAPI_TRACE_INFO, "failed to unlock mutex\n");
 			return;
 		}
-	}
-	else
-	{
-		deallocate_nfapi_tx_data_request(req, pnf_p7);
-	}
+  }
 }
 
 

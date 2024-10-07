@@ -242,49 +242,6 @@ void oai_enb_init(void) {
   init_eNB_afterRU();
 }
 
-
-void oai_create_gnb(void) {
-  int bodge_counter=0;
-
-  if (RC.gNB == NULL) {
-    RC.gNB = (PHY_VARS_gNB **) calloc(1, sizeof(PHY_VARS_gNB *));
-    LOG_D(PHY,"gNB L1 structure RC.gNB allocated @ %p\n",RC.gNB);
-  }
-
-
-  if (RC.gNB[0] == NULL) {
-    RC.gNB[0] = (PHY_VARS_gNB *) calloc(1, sizeof(PHY_VARS_gNB));
-    LOG_D(PHY,"[nr-gnb.c] gNB structure RC.gNB[%d] allocated @ %p\n",0,RC.gNB[0]);
-  }
-  
-  PHY_VARS_gNB *gNB = RC.gNB[0];
-  RC.nb_nr_CC = (int *)malloc(sizeof(int)); // TODO: find a better function to place this in
-
-  gNB->Mod_id = bodge_counter;
-  gNB->CC_id = bodge_counter;
-  RC.nb_nr_CC[bodge_counter] = 1;
-
-  if (gNB->if_inst==0) {
-    gNB->if_inst = NR_IF_Module_init(bodge_counter);
-  }
-
-
-  // This will cause phy_config_request to be installed. That will result in RRC configuring the PHY
-  // that will result in gNB->configured being set to true.
-  // See we need to wait for that to happen otherwise the NFAPI message exchanges won't contain the right parameter values
-  if (RC.gNB[0]->if_inst==0 || RC.gNB[0]->if_inst->NR_PHY_config_req==0 || RC.gNB[0]->if_inst->NR_Schedule_response==0) {
-    NFAPI_TRACE(NFAPI_TRACE_INFO, "RC.gNB[0][0]->if_inst->NR_PHY_config_req is not installed - install it\n");
-    install_nr_schedule_handlers(RC.gNB[0]->if_inst);
-  }
-
-  do {
-    NFAPI_TRACE(NFAPI_TRACE_INFO, "%s() Waiting for gNB to become configured (by RRC/PHY) - need to wait otherwise NFAPI messages won't contain correct values\n", __FUNCTION__);
-    usleep(50000);
-  } while(gNB->configured != 1);
-
-  NFAPI_TRACE(NFAPI_TRACE_INFO, "%s() gNB is now configured\n", __FUNCTION__);
-}
-
 int pnf_connection_indication_cb(nfapi_vnf_config_t *config, int p5_idx) {
   NFAPI_TRACE(NFAPI_TRACE_INFO, "[VNF] pnf connection indication idx:%d\n", p5_idx);
   oai_create_enb();
@@ -297,7 +254,6 @@ int pnf_connection_indication_cb(nfapi_vnf_config_t *config, int p5_idx) {
 
 int pnf_nr_connection_indication_cb(nfapi_vnf_config_t *config, int p5_idx) {
   NFAPI_TRACE(NFAPI_TRACE_INFO, "[VNF] pnf connection indication idx:%d\n", p5_idx);
-  oai_create_gnb();
   nfapi_nr_pnf_param_request_t req;
   memset(&req, 0, sizeof(req));
   req.header.message_id = NFAPI_NR_PHY_MSG_TYPE_PNF_PARAM_REQUEST;
@@ -1216,6 +1172,37 @@ int phy_cqi_indication(struct nfapi_vnf_p7_config *config, nfapi_cqi_indication_
 
 //NR phy indication
 
+
+NR_Sched_Rsp_t g_sched_resp;
+void gNB_dlsch_ulsch_scheduler(module_id_t module_idP, frame_t frame, sub_frame_t slot, NR_Sched_Rsp_t* sched_info);
+int oai_nfapi_dl_tti_req(nfapi_nr_dl_tti_request_t *dl_config_req);
+int oai_nfapi_ul_tti_req(nfapi_nr_ul_tti_request_t *ul_tti_req);
+int oai_nfapi_tx_data_req(nfapi_nr_tx_data_request_t* tx_data_req);
+int oai_nfapi_ul_dci_req(nfapi_nr_ul_dci_request_t* ul_dci_req);
+
+int trigger_scheduler(nfapi_nr_slot_indication_scf_t *slot_ind)
+{
+
+  NR_UL_IND_t ind = {.frame = slot_ind->sfn, .slot = slot_ind->slot, };
+  NR_UL_indication(&ind);
+  // Call into the scheduler (this is hardcoded and should be init properly!)
+  // memset(sched_resp, 0, sizeof(*sched_resp));
+  gNB_dlsch_ulsch_scheduler(0, slot_ind->sfn, slot_ind->slot, &g_sched_resp);
+
+  if (g_sched_resp.DL_req.dl_tti_request_body.nPDUs > 0)
+    oai_nfapi_dl_tti_req(&g_sched_resp.DL_req);
+
+  if (g_sched_resp.UL_tti_req.n_pdus > 0)
+    oai_nfapi_ul_tti_req(&g_sched_resp.UL_tti_req);
+
+  if (g_sched_resp.TX_req.Number_of_PDUs > 0)
+    oai_nfapi_tx_data_req(&g_sched_resp.TX_req);
+
+  if (g_sched_resp.UL_dci_req.numPdus > 0)
+    oai_nfapi_ul_dci_req(&g_sched_resp.UL_dci_req);
+  return 1;
+}
+
 int phy_nr_slot_indication(nfapi_nr_slot_indication_scf_t *ind) {
 
   uint8_t vnf_slot_ahead = 0;
@@ -1223,7 +1210,10 @@ int phy_nr_slot_indication(nfapi_nr_slot_indication_scf_t *ind) {
   uint16_t vnf_sfn = NFAPI_SFNSLOT2SFN(vnf_sfn_slot);
   uint8_t vnf_slot = NFAPI_SFNSLOT2SLOT(vnf_sfn_slot);
   LOG_D(MAC, "VNF SFN/Slot %d.%d \n", vnf_sfn, vnf_slot);
+  trigger_scheduler(ind);
 
+  // received slot indication
+  /*
   nfapi_nr_slot_indication_scf_t *nr_slot_ind = CALLOC(1, sizeof(*nr_slot_ind));
   nr_slot_ind->header = ind->header;
   nr_slot_ind->sfn = vnf_sfn;
@@ -1234,6 +1224,7 @@ int phy_nr_slot_indication(nfapi_nr_slot_indication_scf_t *ind) {
     free(nr_slot_ind);
     nr_slot_ind = NULL;
   }
+  */
 
   return 1;
 }
@@ -1549,6 +1540,7 @@ int nr_param_resp_cb(nfapi_vnf_config_t *config, int p5_idx, nfapi_nr_param_resp
   // for now just 1
   NFAPI_TRACE(NFAPI_TRACE_INFO, "[VNF] %d.%d pnf p7 %s:%d timing %u %u %u %u\n", p5_idx, phy->id, phy->remote_addr, phy->remote_port, p7_vnf->timing_window, p7_vnf->periodic_timing_period, p7_vnf->aperiodic_timing_enabled,
          p7_vnf->periodic_timing_period);
+  nfapi_vnf_p7_add_pnf((p7_vnf->config), phy->remote_addr, phy->remote_port, phy->id);
   req->header.message_id = NFAPI_NR_PHY_MSG_TYPE_CONFIG_REQUEST;
   req->header.phy_id = phy->id;
   NFAPI_TRACE(NFAPI_TRACE_INFO, "[VNF] Send NFAPI_CONFIG_REQUEST\n");
@@ -1763,7 +1755,7 @@ void configure_nr_nfapi_vnf(char *vnf_addr, int vnf_p5_port, char *pnf_ip_addr, 
   vnf.p7_vnfs[0].timing_window = 30;
   vnf.p7_vnfs[0].periodic_timing_enabled = 0;
   vnf.p7_vnfs[0].aperiodic_timing_enabled = 0;
-  vnf.p7_vnfs[0].periodic_timing_period = 10;
+  vnf.p7_vnfs[0].periodic_timing_period = 1;
   vnf.p7_vnfs[0].config = nfapi_vnf_p7_config_create();
   NFAPI_TRACE(NFAPI_TRACE_INFO, "[VNF] %s() vnf.p7_vnfs[0].config:%p VNF ADDRESS:%s:%d\n", __FUNCTION__, vnf.p7_vnfs[0].config, vnf_addr, vnf_p5_port);
   strcpy(vnf.p7_vnfs[0].local_addr, vnf_addr);

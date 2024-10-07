@@ -100,8 +100,9 @@ void nr_generate_pdsch(processingData_L1tx_t *msgTx, int frame, int slot)
     harq->unav_res = ptrsSymbPerSlot * n_ptrs;
 
     /// CRC, coding, interleaving and rate matching
-    AssertFatal(harq->pdu!=NULL,"harq->pdu is null\n");
+    AssertError(harq->pdu_len > 0, return, "no HARQ SDU present\n");
     unsigned char output[rel15->rbSize * NR_SYMBOLS_PER_SLOT * NR_NB_SC_PER_RB * Qm * rel15->nrOfLayers] __attribute__((aligned(64)));
+    DevAssert(harq->pdu_len < rel15->rbSize * NR_SYMBOLS_PER_SLOT * NR_NB_SC_PER_RB * Qm * rel15->nrOfLayers);
     bzero(output,rel15->rbSize * NR_SYMBOLS_PER_SLOT * NR_NB_SC_PER_RB * Qm * rel15->nrOfLayers);
     start_meas(dlsch_encoding_stats);
 
@@ -477,7 +478,7 @@ void nr_generate_pdsch(processingData_L1tx_t *msgTx, int frame, int slot)
         int rb = 0;
         while(rb < rel15->rbSize) {
           //get pmi info
-          const int pmi = (rel15->precodingAndBeamforming.prg_size > 0) ?
+          const int pmi = (rel15->precodingAndBeamforming.num_prgs > 0 && rel15->precodingAndBeamforming.prg_size > 0) ?
             (rel15->precodingAndBeamforming.prgs_list[(int)rb/rel15->precodingAndBeamforming.prg_size].pm_idx) : 0;
           const int pmi2 = (rb < (rel15->rbSize - 1) && rel15->precodingAndBeamforming.prg_size > 0) ?
             (rel15->precodingAndBeamforming.prgs_list[(int)(rb+1)/rel15->precodingAndBeamforming.prg_size].pm_idx) : -1;

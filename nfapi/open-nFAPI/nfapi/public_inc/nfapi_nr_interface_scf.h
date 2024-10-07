@@ -66,6 +66,8 @@ typedef enum {
   NFAPI_NR_PHY_MSG_TYPE_SRS_INDICATION = 0X88,
   NFAPI_NR_PHY_MSG_TYPE_RACH_INDICATION = 0X89,
   // RESERVED 0X8a ~ 0xff
+  NFAPI_NR_PHY_MSG_TYPE_VENDOR_EXT_SLOT_RESPONSE = 0x8F,
+
   NFAPI_NR_PHY_MSG_TYPE_PNF_PARAM_REQUEST = 0x0100,
   NFAPI_NR_PHY_MSG_TYPE_PNF_PARAM_RESPONSE = 0x0101,
   NFAPI_NR_PHY_MSG_TYPE_PNF_CONFIG_REQUEST = 0x0102,
@@ -886,6 +888,19 @@ typedef struct {
   uint8_t nEpreRatioOfPDSCHToPTRS;
   // Beamforming
   nfapi_nr_tx_precoding_and_beamforming_t precodingAndBeamforming;
+  // TX Power info
+  /// Ratio of PDSCH EPRE to NZP CSI-RSEPRE [TS38.214,sec 5.2.2.3.1]
+  uint8_t powerControlOffset;
+  /// Ratio of SSB/PBCH block EPRE to NZP CSI-RS EPRES [TS38.214, sec 5.2.2.3.1]
+  uint8_t powerControlOffsetSS;
+  // CBG fields
+  /// Indicates whether last CB is present in the CBG retransmission ( 0 -> not included; 1 -> included )
+  uint8_t isLastCbPresent;
+  /// Indicates whether TB CRC is part of data payload or control message ( 0 -> payload; 1 -> control message )
+  uint8_t isInlineTbCrc;
+  /// TB CRC: to be used in the last CB, applicable only if last CB is present
+  uint32_t dlTbCrc;
+
   nfapi_v3_pdsch_maintenance_parameters_t maintenance_parms_v3;
 }nfapi_nr_dl_tti_pdsch_pdu_rel15_t;
 
@@ -971,6 +986,8 @@ typedef struct
   uint16_t scramb_id;               // ScramblingID of the CSI-RS [3GPP TS 38.214, sec 5.2.2.3.1], Value: 0->1023
   uint8_t power_control_offset;     // Ratio of PDSCH EPRE to NZP CSI-RSEPRE [3GPP TS 38.214, sec 5.2.2.3.1], Value: 0->23 representing -8 to 15 dB in 1dB steps; 255: L1 is configured with ProfileSSS
   uint8_t power_control_offset_ss;  // Ratio of NZP CSI-RS EPRE to SSB/PBCH block EPRE [3GPP TS 38.214, sec 5.2.2.3.1], Values: 0: -3dB; 1: 0dB; 2: 3dB; 3: 6dB; 255: L1 is configured with ProfileSSS
+  // Beamforming
+  nfapi_nr_tx_precoding_and_beamforming_t precodingAndBeamforming;
 } nfapi_nr_dl_tti_csi_rs_pdu_rel15_t;
 
 
@@ -1311,7 +1328,7 @@ typedef struct
   uint8_t  dmrs_cyclic_shift;
 
   uint8_t  sr_flag;
-  uint8_t  bit_len_harq;
+  uint16_t bit_len_harq;
   uint16_t bit_len_csi_part1;
   uint16_t bit_len_csi_part2;
 
@@ -1712,6 +1729,44 @@ typedef struct
 
 /// 5G PHY FAPI Specification: SRS indication - Section 3.4.10
 
+// Table 3–133 Channel SVD Representation
+
+typedef struct {
+  // Array of (Nu*Nu) entries of the type denoted by ‘iq Representation’
+  // U[ueAntenna uI, left eigenvector leI] = array[uI*Nu + leI]
+  uint8_t* left_eigenvectors_matrix_u;
+
+  // Array of (Nu) entries of the type denoted by ‘singular
+  // Values Representation’
+  // Σ[left eigenvector leI, right eigenvector reI] =
+  // • 0 if leI ≠ reI
+  // • 0 if min(leI, reI) ≥ Nu
+  // • array[leI] if leI = reI
+  uint8_t* diagonal_entries_of_singular_matrix_sum_f;
+
+  // Array of (Nu*Ng) entries of the type denoted by ‘iq
+  // Representation’
+  //  H
+  // VF[right eigenvector reI, gNB antenna gI] =
+  // array[reI*Ng + gI],
+  //- reI: 0…Nu-1
+  //- gI: 0…Ng-1
+  uint8_t* complex_conjugate_of_matrix_of_right_eigenvectors_v_hf;
+} nfapi_nr_srs_channel_svd_representation_prg_t;
+
+typedef struct {
+  uint8_t normalized_iq_representation; // 0: 16-bit normalized complex number (iqSize = 2); 1: 32-bit normalized complex number
+                                        // (iqSize = 4)
+  uint8_t normalized_singular_value_representation; // 0: 8-bit linear representation (sSize = 1); 1:16-bit linear representation
+                                                    // (sSize = 2)
+  int8_t singular_value_scaling; // dB-domain representation of singular value scaling
+  uint16_t num_gnb_antenna_elements; // Ng: Number of gNB antenna elements
+  uint8_t num_ue_srs_ports; // Nu: Number of sampled UE SRS ports
+  uint16_t prg_size; // Size in RBs of a precoding resource block group (PRG)
+  uint16_t num_prgs; // Number of PRGs to be reported for this SRS PDU
+  nfapi_nr_srs_channel_svd_representation_prg_t* prg_list;
+} nfapi_nr_srs_channel_svd_representation_t;
+
 // Normalized channel I/Q matrix
 
 typedef struct {
@@ -1739,11 +1794,11 @@ typedef struct {
   uint8_t num_symbols;                  // Number of symbols for SRS. Value: 1 -> 4. If a PHY does not report for individual symbols then this parameter should be set to 1.
   uint8_t wide_band_snr;                // SNR value in dB measured within configured SRS bandwidth on each symbol. Value: 0 -> 255 representing -64 dB to 63 dB with a step size 0.5 dB. 0xff will be set if this field is invalid.
   uint8_t num_reported_symbols;         // Number of symbols reported in this message. This allows PHY to report individual symbols or aggregated symbols where this field will be set to 1. Value: 1 -> 4.
-  nfapi_nr_srs_reported_symbol_t prgs;
+  nfapi_nr_srs_reported_symbol_t* reported_symbol_list;
 } nfapi_nr_srs_beamforming_report_t;
 
 // SRS indication
-
+#define NFAPI_NR_SRS_IND_MAX_PDU 100
 typedef struct {
   uint16_t tag;                         // 0: Report is carried directly in the value field; 3: The offset from the end of the control portion of the message to the beginning of the report. Other values are reserved.
   uint32_t length;                      // Length of the actual report in bytes, without the padding bytes.
@@ -1771,6 +1826,7 @@ typedef struct {
 
 
 //3.4.11 rach_indication
+#define NFAPI_NR_RACH_IND_MAX_PDU 100
 //table 3-74
 typedef struct
 {

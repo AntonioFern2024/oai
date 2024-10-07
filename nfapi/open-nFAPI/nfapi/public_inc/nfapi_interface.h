@@ -27,7 +27,7 @@
 #define NFAPI_PNF_PARAM_GENERAL_OUI_LENGTH 3
 #define NFAPI_MAX_NUM_RF_BANDS 16
 
-#define NFAPI_MAX_PACKED_MESSAGE_SIZE 8192
+#define NFAPI_MAX_PACKED_MESSAGE_SIZE 32768
 
 // The following definition control the size of arrays used in the interface.
 // These may be changed if desired. They are used in the encoder to make sure 
@@ -94,15 +94,15 @@ typedef signed char		int8_t;
 typedef struct {
 	uint16_t phy_id;
 	uint16_t message_id;
-	uint16_t message_length;
-	uint16_t spare;
+  uint32_t message_length;
+  uint16_t spare;
 } nfapi_p4_p5_message_header_t;
 
 typedef struct {
 	uint16_t phy_id;
 	uint16_t message_id;
-	uint16_t message_length;
-	uint16_t m_segment_sequence; /* This consists of 3 fields - namely, M, Segement & Sequence number*/
+  uint32_t message_length;
+  uint16_t m_segment_sequence; /* This consists of 3 fields - namely, M, Segement & Sequence number*/
 	uint32_t checksum;
 	uint32_t transmit_timestamp;
 } nfapi_p7_message_header_t;

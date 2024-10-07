@@ -18,7 +18,7 @@
  * For more information about the OpenAirInterface (OAI) Software Alliance:
  *      contact@openairinterface.org
  */
-/*! \file nfapi/open-nFAPI/fapi/inc/nr_fapi_p5_utils.h
+/*! \file nfapi/open-nFAPI/fapi/inc/p5/nr_fapi_p5_utils.h
  * \brief
  * \author Ruben S. Silva
  * \date 2024
@@ -35,33 +35,6 @@
 #include "stdint.h"
 #include "nr_fapi.h"
 #include "nfapi/oai_integration/vendor_ext.h"
-
-#define EQ_TLV(_tlv_a, _tlv_b)        \
-  do {                                \
-    EQ(_tlv_a.tl.tag, _tlv_b.tl.tag); \
-    EQ(_tlv_a.value, _tlv_b.value);   \
-  } while (0)
-
-#define EQ(_a, _b)      \
-  do {                  \
-    if ((_a) != (_b)) { \
-      return false;     \
-    }                   \
-  } while (0)
-
-#define COPY_TL(_dst_tl, _src_tl)    \
-  do {                               \
-    _dst_tl.tag = _src_tl.tag;       \
-    _dst_tl.length = _src_tl.length; \
-  } while (0)
-
-#define COPY_TLV(_dst, _src)   \
-  do {                         \
-    COPY_TL(_dst.tl, _src.tl); \
-    _dst.value = _src.value;   \
-  } while (0)
-
-void copy_vendor_extension_value(nfapi_vendor_extension_tlv_t *dst, const nfapi_vendor_extension_tlv_t *src);
 
 bool eq_param_request(const nfapi_nr_param_request_scf_t *unpacked_req, const nfapi_nr_param_request_scf_t *req);
 bool eq_param_response(const nfapi_nr_param_response_scf_t *unpacked_req, const nfapi_nr_param_response_scf_t *req);

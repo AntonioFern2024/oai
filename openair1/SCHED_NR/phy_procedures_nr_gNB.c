@@ -503,7 +503,7 @@ void nr_fill_indication(PHY_VARS_gNB *gNB, int frame, int slot_rx, int ULSCH_id,
   gNB->crc_pdu_list[num_crc].rnti = pusch_pdu->rnti;
   gNB->crc_pdu_list[num_crc].harq_id = harq_pid;
   gNB->crc_pdu_list[num_crc].tb_crc_status = crc_flag;
-  gNB->crc_pdu_list[num_crc].num_cb = pusch_pdu->pusch_data.num_cb;
+  gNB->crc_pdu_list[num_crc].num_cb = 0;
   gNB->crc_pdu_list[num_crc].ul_cqi = cqi;
   gNB->crc_pdu_list[num_crc].timing_advance = timing_advance_update;
   // in terms of dBFS range -128 to 0 with 0.1 step
@@ -616,22 +616,21 @@ static void fill_ul_rb_mask(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx, uint32
   }
 }
 
-int fill_srs_reported_symbol_list(nfapi_nr_srs_reported_symbol_t *prgs,
-                                  const nfapi_nr_srs_pdu_t *srs_pdu,
+int fill_srs_reported_symbol(nfapi_nr_srs_reported_symbol_t *reported_symbol,
+                             const nfapi_nr_srs_pdu_t *srs_pdu,
                                   const int N_RB_UL,
                                   const int8_t *snr_per_rb,
                                   const int srs_est) {
-
-  prgs->num_prgs = srs_pdu->beamforming.num_prgs;
-  for(int prg_idx = 0; prg_idx < prgs->num_prgs; prg_idx++) {
+  reported_symbol->num_prgs = srs_pdu->beamforming.num_prgs;
+  for (int prg_idx = 0; prg_idx < reported_symbol->num_prgs; prg_idx++) {
     if (srs_est<0) {
-      prgs->prg_list[prg_idx].rb_snr = 0xFF;
+      reported_symbol->prg_list[prg_idx].rb_snr = 0xFF;
     } else if (snr_per_rb[prg_idx] < -64) {
-      prgs->prg_list[prg_idx].rb_snr = 0;
+      reported_symbol->prg_list[prg_idx].rb_snr = 0;
     } else if (snr_per_rb[prg_idx] > 63) {
-      prgs->prg_list[prg_idx].rb_snr = 0xFE;
+      reported_symbol->prg_list[prg_idx].rb_snr = 0xFE;
     } else {
-      prgs->prg_list[prg_idx].rb_snr = (snr_per_rb[prg_idx] + 64) << 1;
+      reported_symbol->prg_list[prg_idx].rb_snr = (snr_per_rb[prg_idx] + 64) << 1;
     }
   }
 
@@ -740,8 +739,6 @@ int phy_procedures_gNB_uespec_RX(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx)
   for (int i = 0; i < gNB->max_nb_pucch; i++) {
     NR_gNB_PUCCH_t *pucch = &gNB->pucch[i];
     if (pucch) {
-      if (NFAPI_MODE == NFAPI_MODE_PNF)
-        pucch->frame = frame_rx;
       if ((pucch->active == 1) &&
           (pucch->frame == frame_rx) &&
           (pucch->slot == slot_rx) ) {
@@ -1040,7 +1037,7 @@ int phy_procedures_gNB_uespec_RX(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx)
             nr_srs_bf_report.num_symbols = 1 << srs_pdu->num_symbols;
             nr_srs_bf_report.wide_band_snr = srs_est >= 0 ? (snr + 64) << 1 : 0xFF; // 0xFF will be set if this field is invalid
             nr_srs_bf_report.num_reported_symbols = 1 << srs_pdu->num_symbols;
-            fill_srs_reported_symbol_list(&nr_srs_bf_report.prgs, srs_pdu, frame_parms->N_RB_UL, snr_per_rb, srs_est);
+            fill_srs_reported_symbol(&nr_srs_bf_report.reported_symbol_list[0], srs_pdu, frame_parms->N_RB_UL, snr_per_rb, srs_est);
 
 #ifdef SRS_IND_DEBUG
             LOG_I(NR_PHY, "nr_srs_bf_report.prg_size = %i\n", nr_srs_bf_report.prg_size);

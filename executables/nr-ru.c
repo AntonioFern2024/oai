@@ -1215,29 +1215,7 @@ void *ru_thread( void *param ) {
   struct timespec slot_start;
 	clock_gettime(CLOCK_MONOTONIC, &slot_start);
   
-  struct timespec slot_duration; 
-	slot_duration.tv_sec = 0;
-	//slot_duration.tv_nsec = 0.5e6;
-	slot_duration.tv_nsec = 0.5e6;
-
-  
-
   while (!oai_exit) {
-    
-    if (NFAPI_MODE==NFAPI_MODE_VNF || NFAPI_MODE == NFAPI_MODE_AERIAL ) {
-      // We should make a VNF main loop with proper tasks calls in case of VNF
-      slot_start = timespec_add(slot_start,slot_duration);
-      struct timespec curr_time;
-      clock_gettime(CLOCK_MONOTONIC, &curr_time);    
-      struct timespec sleep_time;
-      
-      if((slot_start.tv_sec > curr_time.tv_sec) ||
-	 (slot_start.tv_sec == curr_time.tv_sec && slot_start.tv_nsec > curr_time.tv_nsec)){
-	sleep_time = timespec_sub(slot_start,curr_time);
-	usleep(sleep_time.tv_nsec * 1e-3); 
-      }
-    }
-    
     if (slot==(fp->slots_per_frame-1)) {
       slot=0;
       frame++;
@@ -1854,18 +1832,6 @@ static void NRRCconfig_RU(configmodule_interface_t *cfg)
   paramlist_def_t RUParamList = {CONFIG_STRING_RU_LIST,NULL,0};
   config_getlist(cfg, &RUParamList, RUParams, sizeofArray(RUParams), NULL);
 
-  paramdef_t GNBSParams[] = GNBSPARAMS_DESC;
-  paramdef_t GNBParams[] = GNBPARAMS_DESC;
-  paramlist_def_t GNBParamList = {GNB_CONFIG_STRING_GNB_LIST, NULL, 0};
-  config_get(cfg, GNBSParams, sizeofArray(GNBSParams), NULL);
-  int num_gnbs = GNBSParams[GNB_ACTIVE_GNBS_IDX].numelt;
-  AssertFatal(num_gnbs > 0, "Failed to parse config file no gnbs %s \n", GNB_CONFIG_STRING_ACTIVE_GNBS);
-  config_getlist(cfg, &GNBParamList, GNBParams, sizeofArray(GNBParams), NULL);
-  int N1 = *GNBParamList.paramarray[0][GNB_PDSCH_ANTENNAPORTS_N1_IDX].iptr;
-  int N2 = *GNBParamList.paramarray[0][GNB_PDSCH_ANTENNAPORTS_N2_IDX].iptr;
-  int XP = *GNBParamList.paramarray[0][GNB_PDSCH_ANTENNAPORTS_XP_IDX].iptr;
-  int num_logical_antennas = N1 * N2 * XP;
-
   if (RUParamList.numelt > 0) {
     RC.ru = (RU_t **)malloc(RC.nb_RU*sizeof(RU_t *));
     RC.ru_mask = (1 << NB_RU) - 1;
@@ -2032,8 +1998,6 @@ static void NRRCconfig_RU(configmodule_interface_t *cfg)
       }  /* strcmp(local_rf, "yes") != 0 */
 
       RC.ru[j]->nb_tx                             = *(RUParamList.paramarray[j][RU_NB_TX_IDX].uptr);
-      AssertFatal(RC.ru[j]->nb_tx >= num_logical_antennas,
-      "Number of logical antenna ports (set in config file with pdsch_AntennaPorts) cannot be larger than physical antennas (nb_tx)\n");
       RC.ru[j]->nb_rx                             = *(RUParamList.paramarray[j][RU_NB_RX_IDX].uptr);
       RC.ru[j]->att_tx                            = *(RUParamList.paramarray[j][RU_ATT_TX_IDX].uptr);
       RC.ru[j]->att_rx                            = *(RUParamList.paramarray[j][RU_ATT_RX_IDX].uptr);
