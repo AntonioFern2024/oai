@@ -71,7 +71,12 @@ void prepare_scc(NR_ServingCellConfigCommon_t *scc)
   scc->ssb_periodicityServingCell = calloc_or_fail(1, sizeof(*scc->ssb_periodicityServingCell));
   scc->ssbSubcarrierSpacing = calloc_or_fail(1, sizeof(*scc->ssbSubcarrierSpacing));
   scc->tdd_UL_DL_ConfigurationCommon = calloc_or_fail(1, sizeof(*scc->tdd_UL_DL_ConfigurationCommon));
-  scc->tdd_UL_DL_ConfigurationCommon->pattern2 = calloc_or_fail(1, sizeof(*scc->tdd_UL_DL_ConfigurationCommon->pattern2));
+  struct NR_TDD_UL_DL_ConfigCommon *tdd = scc->tdd_UL_DL_ConfigurationCommon;
+  tdd->pattern2 = calloc_or_fail(1, sizeof(*tdd->pattern2));
+  tdd->pattern1.ext1 = calloc_or_fail(1, sizeof(*tdd->pattern1.ext1));
+  tdd->pattern1.ext1->dl_UL_TransmissionPeriodicity_v1530 = calloc_or_fail(1, sizeof(*tdd->pattern1.ext1->dl_UL_TransmissionPeriodicity_v1530));
+  tdd->pattern2->ext1 = calloc_or_fail(1, sizeof(struct NR_TDD_UL_DL_Pattern__ext1));
+  tdd->pattern2->ext1->dl_UL_TransmissionPeriodicity_v1530 = calloc_or_fail(1, sizeof(*tdd->pattern2->ext1->dl_UL_TransmissionPeriodicity_v1530));
   scc->downlinkConfigCommon = calloc_or_fail(1, sizeof(*scc->downlinkConfigCommon));
   scc->downlinkConfigCommon->frequencyInfoDL = calloc_or_fail(1, sizeof(*scc->downlinkConfigCommon->frequencyInfoDL));
   scc->downlinkConfigCommon->initialDownlinkBWP = calloc_or_fail(1, sizeof(*scc->downlinkConfigCommon->initialDownlinkBWP));
@@ -302,6 +307,38 @@ void fill_scc_sim(NR_ServingCellConfigCommon_t *scc, uint64_t *ssb_bitmap, int N
   scc->ss_PBCH_BlockPower = 20;
 }
 
+static void fix_tdd_pattern(NR_ServingCellConfigCommon_t *scc)
+{
+  int pattern_ext = scc->tdd_UL_DL_ConfigurationCommon->pattern1.dl_UL_TransmissionPeriodicity - 8;
+  // Check if the pattern1 extension is configured and set the value accordingly
+  if (pattern_ext >= 0) {
+    scc->tdd_UL_DL_ConfigurationCommon->pattern1.ext1 = CALLOC(1, sizeof(struct NR_TDD_UL_DL_Pattern__ext1));
+    scc->tdd_UL_DL_ConfigurationCommon->pattern1.ext1->dl_UL_TransmissionPeriodicity_v1530 = CALLOC(1, sizeof(long));
+    *scc->tdd_UL_DL_ConfigurationCommon->pattern1.ext1->dl_UL_TransmissionPeriodicity_v1530 = pattern_ext;
+    scc->tdd_UL_DL_ConfigurationCommon->pattern1.dl_UL_TransmissionPeriodicity = 5;
+  } else {
+    scc->tdd_UL_DL_ConfigurationCommon->pattern1.ext1 = NULL;
+  }
+
+  if (scc->tdd_UL_DL_ConfigurationCommon->pattern2 != NULL) {
+    /* The pattern2 is not configured free the memory these shall not be encoded with default values in SIB1 */
+    if (scc->tdd_UL_DL_ConfigurationCommon->pattern2->dl_UL_TransmissionPeriodicity > 320) {
+      free(scc->tdd_UL_DL_ConfigurationCommon->pattern2);
+      scc->tdd_UL_DL_ConfigurationCommon->pattern2 = NULL;
+    } else {
+      // Check if the pattern2 extension is configured and set the value accordingly
+      pattern_ext = scc->tdd_UL_DL_ConfigurationCommon->pattern2->dl_UL_TransmissionPeriodicity - 8;
+      if (pattern_ext >= 0) {
+        scc->tdd_UL_DL_ConfigurationCommon->pattern2->ext1 = CALLOC(1, sizeof(struct NR_TDD_UL_DL_Pattern__ext1));
+        scc->tdd_UL_DL_ConfigurationCommon->pattern2->ext1->dl_UL_TransmissionPeriodicity_v1530 = CALLOC(1, sizeof(long));
+        *scc->tdd_UL_DL_ConfigurationCommon->pattern2->ext1->dl_UL_TransmissionPeriodicity_v1530 = pattern_ext;
+        scc->tdd_UL_DL_ConfigurationCommon->pattern2->dl_UL_TransmissionPeriodicity = 5;
+      } else {
+        scc->tdd_UL_DL_ConfigurationCommon->pattern2->ext1 = NULL;
+      }
+    }
+  }
+}
 
 void fix_scc(NR_ServingCellConfigCommon_t *scc, uint64_t ssbmap)
 {
@@ -372,11 +409,7 @@ void fix_scc(NR_ServingCellConfigCommon_t *scc, uint64_t ssbmap)
     ASN_STRUCT_FREE(asn_DEF_NR_TDD_UL_DL_ConfigCommon, scc->tdd_UL_DL_ConfigurationCommon);
     scc->tdd_UL_DL_ConfigurationCommon = NULL;
   } else { // TDD
-    if (scc->tdd_UL_DL_ConfigurationCommon->pattern2->dl_UL_TransmissionPeriodicity > 320 ) {
-      free(scc->tdd_UL_DL_ConfigurationCommon->pattern2);
-      scc->tdd_UL_DL_ConfigurationCommon->pattern2 = NULL;
-    }
-
+    fix_tdd_pattern(scc);
   }
 
   if ((int)*scc->uplinkConfigCommon->initialUplinkBWP->rach_ConfigCommon->choice.setup->msg1_SubcarrierSpacing == -1) {

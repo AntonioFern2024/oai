@@ -404,11 +404,10 @@ uint8_t get_dl_nrOfLayers(const NR_UE_sched_ctrl_t *sched_ctrl, const nr_dci_for
 
 void set_sched_pucch_list(NR_UE_sched_ctrl_t *sched_ctrl,
                           const NR_UE_UL_BWP_t *ul_bwp,
-                          const NR_ServingCellConfigCommon_t *scc,
-                          const tdd_config_t *tdd_cfg);
+                          const NR_ServingCellConfigCommon_t *scc);
 void free_sched_pucch_list(NR_UE_sched_ctrl_t *sched_ctrl);
 
-int get_dl_tda(const gNB_MAC_INST *nrmac, int slot);
+int get_dl_tda(const gNB_MAC_INST *nrmac, const NR_ServingCellConfigCommon_t *scc, int slot);
 int get_ul_tda(gNB_MAC_INST *nrmac, const NR_ServingCellConfigCommon_t *scc, int frame, int slot);
 
 int get_cce_index(const gNB_MAC_INST *nrmac,
