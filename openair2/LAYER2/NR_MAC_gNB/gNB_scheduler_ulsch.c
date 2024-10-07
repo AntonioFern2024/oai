@@ -1857,18 +1857,18 @@ static void pf_ul(module_id_t module_id,
 
     const int B = max(0, sched_ctrl->estimated_ul_buffer - sched_ctrl->sched_ul_bytes);
     /* preprocessor computed sched_frame/sched_slot */
-    int8_t last_ul_slot;
+    int8_t last_sched_ul_slot = 0;
     if (nrmac->tdd_config.is_tdd) { // Force the default transmission in a full slot as early as possible in the UL portion of TDD
                                     // period (last_sched_ul_slot)
       if (scc->tdd_UL_DL_ConfigurationCommon->pattern1.nrofUplinkSlots != 0)
-        last_ul_slot = get_first_ul_slot_new(scc->tdd_UL_DL_ConfigurationCommon, 0);
+        last_sched_ul_slot = get_first_ul_slot_new(scc->tdd_UL_DL_ConfigurationCommon, 0);
       else if (scc->tdd_UL_DL_ConfigurationCommon->pattern2 != NULL)
-        last_ul_slot = get_first_ul_slot_new(scc->tdd_UL_DL_ConfigurationCommon, 1);
+        last_sched_ul_slot = get_first_ul_slot_new(scc->tdd_UL_DL_ConfigurationCommon, 1);
 
     } else {
-      last_ul_slot = sched_ctrl->last_ul_slot;
+      last_sched_ul_slot = sched_ctrl->last_ul_slot;
     }
-    const bool do_sched = nr_UE_is_to_be_scheduled(last_ul_slot,
+    const bool do_sched = nr_UE_is_to_be_scheduled(last_sched_ul_slot,
                                                    &nrmac->tdd_config,
                                                    0,
                                                    UE,
