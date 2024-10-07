@@ -27,25 +27,21 @@
  * \version 0.1
  */
 
-
-#include <stdio.h>
-#include <stdlib.h>
 #include <stdint.h>
-
 #include "ExtendedProtocolDiscriminator.h"
-#include "SecurityHeaderType.h"
-#include "SpareHalfOctet.h"
+#include "FGMMCapability.h"
 #include "FGSMobileIdentity.h"
-#include "NasKeySetIdentifier.h"
 #include "FGSRegistrationType.h"
 #include "MessageType.h"
-#include "FGMMCapability.h"
+#include "NasKeySetIdentifier.h"
 #include "NrUESecurityCapability.h"
+#include "SecurityHeaderType.h"
+#include "SpareHalfOctet.h"
 
 #ifndef REGISTRATION_REQUEST_H_
 #define REGISTRATION_REQUEST_H_
 
-
+// clang-format off
 # define REGISTRATION_REQUEST_NON_CURRENT_NATIVE_NAS_KEYSET_PRESENT           (1<<0)
 # define REGISTRATION_REQUEST_5GMM_CAPABILITY_PRESENT                         (1<<1)
 # define REGISTRATION_REQUEST_UE_SECURITY_CAPABILITY_PRESENT                  (1<<2)
@@ -70,29 +66,30 @@
 # define REGISTRATION_REQUEST_EPS_BEARER_CONTEXT_STATUS_PRESENT               (1<<21)
 
 typedef enum registration_request_iei_tag {
-  REGISTRATION_REQUEST_NON_CURRENT_NATIVE_NAS_KEYSET_IEI                          = 0xC0, /* 0xC- = 192- */
-  REGISTRATION_REQUEST_5GMM_CAPABILITY_IEI                                        = 0x10, /* 0x10 = 16  */
-  REGISTRATION_REQUEST_UE_SECURITY_CAPABILITY_IEI                                 = 0x2E, /* 0x2E = 46  */
-  REGISTRATION_REQUEST_REQUESTED_NSSAI_IEI                                        = 0x2F, /* 0x2F = 47  */
-  REGISTRATION_REQUEST_LAST_VISITED_REGISTERED_TAI_IEI                            = 0x52, /* 0x52 = 82  */
-  REGISTRATION_REQUEST_S1_UE_NETWORK_CAPABILITY_IEI                               = 0x17, /* 0x17 = 23  */
-  REGISTRATION_REQUEST_UPLINK_DATA_STATUS_IEI                                     = 0x40, /* 0x40 = 64  */
-  REGISTRATION_REQUEST_PDU_SESSION_STATUS_IEI                                     = 0x50, /* 0x50 = 80  */
-  REGISTRATION_REQUEST_MICO_INDICATION_IEI                                        = 0xB0, /* 0xB- = 176- */
-  REGISTRATION_REQUEST_UE_STATUS_IEI                                              = 0x2B, /* 0x2B = 43  */
-  REGISTRATION_REQUEST_ADDITIONAL_GUTI_IEI                                        = 0x77, /* 0x77 = 119  */
-  REGISTRATION_REQUEST_ALLOWED_PDU_SESSION_STATUS_IEI                             = 0x25, /* 0x25 = 37  */
-  REGISTRATION_REQUEST_UE_USAGE_SETTING_IEI                                       = 0x18, /* 0x18 = 24  */
-  REGISTRATION_REQUEST_REQUESTED_DRX_PARAMETERS_IEI                               = 0x51, /* 0x51 = 81  */
-  REGISTRATION_REQUEST_EPS_NAS_MESSAGE_CONTAINER_IEI                              = 0x70, /* 0x70 = 112  */
-  REGISTRATION_REQUEST_LADN_INDICATION_IEI                                        = 0x74, /* 0x74 = 116  */
-  REGISTRATION_REQUEST_PAYLOAD_CONTAINER_TYPE_IEI                                 = 0x80, /* 0x80 = 128  */
-  REGISTRATION_REQUEST_PAYLOAD_CONTAINER_IEI                                      = 0x7B, /* 0x7B = 123  */
-  REGISTRATION_REQUEST_NETWORK_SLICING_INDICATION_IEI                             = 0x90, /* 0x90 = 144  */
-  REGISTRATION_REQUEST_5GS_UPDATE_TYPE_IEI                                        = 0x53, /* 0x53 = 83  */
-  REGISTRATION_REQUEST_NAS_MESSAGE_CONTAINER_IEI                                  = 0x71, /* 0x71 = 113  */
-  REGISTRATION_REQUEST_EPS_BEARER_CONTEXT_STATUS_IEI                              = 0x60  /* 0x60 = 96  */
+  REGISTRATION_REQUEST_NON_CURRENT_NATIVE_NAS_KEYSET_IEI     = 0xC0, /* 0xC- = 192- */
+  REGISTRATION_REQUEST_5GMM_CAPABILITY_IEI                   = 0x10, /* 0x10 = 16  */
+  REGISTRATION_REQUEST_UE_SECURITY_CAPABILITY_IEI            = 0x2E, /* 0x2E = 46  */
+  REGISTRATION_REQUEST_REQUESTED_NSSAI_IEI                   = 0x2F, /* 0x2F = 47  */
+  REGISTRATION_REQUEST_LAST_VISITED_REGISTERED_TAI_IEI       = 0x52, /* 0x52 = 82  */
+  REGISTRATION_REQUEST_S1_UE_NETWORK_CAPABILITY_IEI          = 0x17, /* 0x17 = 23  */
+  REGISTRATION_REQUEST_UPLINK_DATA_STATUS_IEI                = 0x40, /* 0x40 = 64  */
+  REGISTRATION_REQUEST_PDU_SESSION_STATUS_IEI                = 0x50, /* 0x50 = 80  */
+  REGISTRATION_REQUEST_MICO_INDICATION_IEI                   = 0xB0, /* 0xB- = 176- */
+  REGISTRATION_REQUEST_UE_STATUS_IEI                         = 0x2B, /* 0x2B = 43  */
+  REGISTRATION_REQUEST_ADDITIONAL_GUTI_IEI                   = 0x77, /* 0x77 = 119  */
+  REGISTRATION_REQUEST_ALLOWED_PDU_SESSION_STATUS_IEI        = 0x25, /* 0x25 = 37  */
+  REGISTRATION_REQUEST_UE_USAGE_SETTING_IEI                  = 0x18, /* 0x18 = 24  */
+  REGISTRATION_REQUEST_REQUESTED_DRX_PARAMETERS_IEI          = 0x51, /* 0x51 = 81  */
+  REGISTRATION_REQUEST_EPS_NAS_MESSAGE_CONTAINER_IEI         = 0x70, /* 0x70 = 112  */
+  REGISTRATION_REQUEST_LADN_INDICATION_IEI                   = 0x74, /* 0x74 = 116  */
+  REGISTRATION_REQUEST_PAYLOAD_CONTAINER_TYPE_IEI            = 0x80, /* 0x80 = 128  */
+  REGISTRATION_REQUEST_PAYLOAD_CONTAINER_IEI                 = 0x7B, /* 0x7B = 123  */
+  REGISTRATION_REQUEST_NETWORK_SLICING_INDICATION_IEI        = 0x90, /* 0x90 = 144  */
+  REGISTRATION_REQUEST_5GS_UPDATE_TYPE_IEI                   = 0x53, /* 0x53 = 83  */
+  REGISTRATION_REQUEST_NAS_MESSAGE_CONTAINER_IEI             = 0x71, /* 0x71 = 113  */
+  REGISTRATION_REQUEST_EPS_BEARER_CONTEXT_STATUS_IEI         = 0x60  /* 0x60 = 96  */
 } registration_request_iei;
+// clang-format on
 
 /*
  * Message name: Registration request
@@ -103,18 +100,18 @@ typedef enum registration_request_iei_tag {
 
 typedef struct registration_request_msg_tag {
   /* Mandatory fields */
-  ExtendedProtocolDiscriminator           protocoldiscriminator;
-  SecurityHeaderType                      securityheadertype:4;
-  SpareHalfOctet                          sparehalfoctet:4;
-  MessageType                             messagetype;
-  FGSRegistrationType                     fgsregistrationtype;
-  NasKeySetIdentifier                     naskeysetidentifier;
-  FGSMobileIdentity                       fgsmobileidentity;
+  ExtendedProtocolDiscriminator protocoldiscriminator;
+  SecurityHeaderType securityheadertype: 4;
+  SpareHalfOctet sparehalfoctet: 4;
+  MessageType messagetype;
+  FGSRegistrationType fgsregistrationtype;
+  NasKeySetIdentifier naskeysetidentifier;
+  FGSMobileIdentity fgsmobileidentity;
 
   /* Optional fields */
-  uint32_t                                presencemask;
-  FGMMCapability                          fgmmcapability;
-  NrUESecurityCapability                  nruesecuritycapability;
+  uint32_t presencemask;
+  FGMMCapability fgmmcapability;
+  NrUESecurityCapability nruesecuritycapability;
 } registration_request_msg;
 
 int decode_registration_request(registration_request_msg *registrationrequest, uint8_t *buffer, uint32_t len);
@@ -122,4 +119,3 @@ int decode_registration_request(registration_request_msg *registrationrequest, u
 int encode_registration_request(registration_request_msg *registrationrequest, uint8_t *buffer, uint32_t len);
 
 #endif /* ! defined(REGISTRATION_REQUEST_H_) */
-

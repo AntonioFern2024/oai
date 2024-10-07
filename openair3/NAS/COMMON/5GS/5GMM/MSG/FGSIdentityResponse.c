@@ -19,45 +19,28 @@
  *      contact@openairinterface.org
  */
 
-/*! \file PduSessionEstablishRequest.c
+/*! \file FGSIdentityResponse.c
 
-\brief pdu session establishment request procedures
+\brief identity response procedures for gNB
 \author Yoshio INOUE, Masayuki HARADA
 \email: yoshio.inoue@fujitsu.com,masayuki.harada@fujitsu.com
 \date 2020
 \version 0.1
 */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "FGSIdentityResponse.h"
 #include <stdint.h>
 
-
-#include "TLVEncoder.h"
-#include "TLVDecoder.h"
-#include "PduSessionEstablishRequest.h"
-
-
-int encode_pdu_session_establishment_request(pdu_session_establishment_request_msg *pdusessionestablishrequest, uint8_t *buffer)
+int encode_identiy_response(fgs_identiy_response_msg *fgs_identity_reps, uint8_t *buffer, uint32_t len)
 {
   int encoded = 0;
+  int encode_result = 0;
 
-
-  *(buffer + encoded) = pdusessionestablishrequest->protocoldiscriminator;
-  encoded++;
-  *(buffer + encoded) = pdusessionestablishrequest->pdusessionid;
-  encoded++;
-  *(buffer + encoded) = pdusessionestablishrequest->pti;
-  encoded++;
-  *(buffer + encoded) = pdusessionestablishrequest->pdusessionestblishmsgtype;
-  encoded++;
-
-  IES_ENCODE_U16(buffer, encoded, pdusessionestablishrequest->maxdatarate);
-  *(buffer + encoded) = pdusessionestablishrequest->pdusessiontype;
-  encoded++;
+  if ((encode_result = encode_5gs_mobile_identity(&fgs_identity_reps->fgsmobileidentity, 0, buffer + encoded, len - encoded))
+      < 0) // Return in case of error
+    return encode_result;
+  else
+    encoded += encode_result;
 
   return encoded;
 }
-
-

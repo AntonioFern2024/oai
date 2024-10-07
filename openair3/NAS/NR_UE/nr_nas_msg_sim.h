@@ -23,50 +23,88 @@
  * \brief simulator for nr nas message
  * \author Yoshio INOUE, Masayuki HARADA
  * \email yoshio.inoue@fujitsu.com,masayuki.harada@fujitsu.com
+ * \protocol 5GS (5GMM and 5GSM)
  * \date 2020
  * \version 0.1
  */
 
-
-
 #ifndef __NR_NAS_MSG_SIM_H__
 #define __NR_NAS_MSG_SIM_H__
 
-#include "RegistrationRequest.h"
-#include "FGSIdentityResponse.h"
-#include "FGSAuthenticationResponse.h"
-#include "FGSNASSecurityModeComplete.h"
-#include "FGSDeregistrationRequestUEOriginating.h"
-#include "RegistrationComplete.h"
-#include "as_message.h"
-#include "FGSUplinkNasTransport.h"
+#include <common/utils/assertions.h>
 #include <openair3/UICC/usim_interface.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include "FGSAuthenticationResponse.h"
+#include "FGSDeregistrationRequestUEOriginating.h"
+#include "FGSIdentityResponse.h"
+#include "FGSMobileIdentity.h"
+#include "FGSNASSecurityModeComplete.h"
+#include "FGSUplinkNasTransport.h"
+#include "RegistrationComplete.h"
+#include "RegistrationRequest.h"
+#include "as_message.h"
+#include "openair3/NAS/COMMON/5GS/NAS_FGS_common.h"
 #include "secu_defs.h"
 
+// clang-format off
 #define PLAIN_5GS_MSG                                      0b0000
 #define INTEGRITY_PROTECTED                                0b0001
 #define INTEGRITY_PROTECTED_AND_CIPHERED                   0b0010
 #define INTEGRITY_PROTECTED_WITH_NEW_SECU_CTX              0b0011          // only for SECURITY MODE COMMAND
 #define INTEGRITY_PROTECTED_AND_CIPHERED_WITH_NEW_SECU_CTX 0b0100         // only for SECURITY MODE COMPLETE
 
-#define REGISTRATION_REQUEST                               0b01000001 /* 65 = 0x41 */
-#define REGISTRATION_ACCEPT                                0b01000010 /* 66 = 0x42 */
-#define REGISTRATION_COMPLETE                              0b01000011 /* 67 = 0x43 */
-#define FGS_DEREGISTRATION_REQUEST_UE_ORIGINATING          0b01000101
-#define FGS_DEREGISTRATION_ACCEPT                          0b01000110
+// Message types for 5GS mobility management (Table 9.7.1 of 3GPP TS 24.501)
+#define FGS_REGISTRATION_REQUEST                           0b01000001 /* 65 = 0x41 */
+#define FGS_REGISTRATION_ACCEPT                            0b01000010 /* 66 = 0x42 */
+#define FGS_REGISTRATION_COMPLETE                          0b01000011 /* 67 = 0x43 */
+#define FGS_REGISTRATION_REJECT                            0b01000100 /* 68 = 0x44 */
+#define FGS_DEREGISTRATION_REQUEST_UE_ORIGINATING          0b01000101 /* 69 = 0x45 */
+#define FGS_DEREGISTRATION_ACCEPT_UE_ORIGINATING           0b01000110 /* 70 = 0x46 */
+#define FGS_DEREGISTRATION_REQUEST_UE_TERMINATED           0b01000111 /* 71 = 0x47 */
+#define FGS_DEREGISTRATION_ACCEPT_UE_TERMINATED            0b01001000 /* 72 = 0x48 */
+#define FGS_SERVICE_REQUEST                                0b01001100 /* 76 = 0x4C */
+#define FGS_SERVICE_REJECT                                 0b01001101 /* 77 = 0x4D */
+#define FGS_SERVICE_ACCEPT                                 0b01001110 /* 78 = 0x4E */
+#define FGS_CONTROL_PLANE_SERVICE_REQUEST                  0b01001111 /* 79 = 0x4F */
+#define FGS_NSS_AUTHENTICATION_COMMAND                     0b01010000 /* 80 = 0x50 */
+#define FGS_NSS_AUTHENTICATION_COMPLETE                    0b01010001 /* 81 = 0x51 */
+#define FGS_NSS_AUTHENTICATION_RESULT                      0b01010010 /* 82 = 0x52 */
+#define FGS_CONFIGURATION_UPDATE_COMMAND                   0b01010100 /* 84 = 0x54 */
+#define FGS_CONFIGURATION_UPDATE_COMPLETE                  0b01010101 /* 85 = 0x55 */
 #define FGS_AUTHENTICATION_REQUEST                         0b01010110 /* 86 = 0x56 */
 #define FGS_AUTHENTICATION_RESPONSE                        0b01010111 /* 87 = 0x57 */
+#define FGS_AUTHENTICATION_REJECT                          0b01011000 /* 88 = 0x58 */
+#define FGS_AUTHENTICATION_FAILURE                         0b01011001 /* 89 = 0x59 */
+#define FGS_AUTHENTICATION_RESULT                          0b01011010 /* 90 = 0x5A */
 #define FGS_IDENTITY_REQUEST                               0b01011011 /* 91 = 0x5b */
 #define FGS_IDENTITY_RESPONSE                              0b01011100 /* 92 = 0x5c */
 #define FGS_SECURITY_MODE_COMMAND                          0b01011101 /* 93 = 0x5d */
 #define FGS_SECURITY_MODE_COMPLETE                         0b01011110 /* 94 = 0x5e */
-#define FGS_UPLINK_NAS_TRANSPORT                           0b01100111 /* 103= 0x67 */
-#define FGS_DOWNLINK_NAS_TRANSPORT                         0b01101000 /* 104= 0x68 */
+#define FGS_SECURITY_MODE_REJECT                           0b01011111 /* 95 = 0x5F */
+#define FGS_5GMM_STATUS                                    0b01100100 /* 100 = 0x64 */
+#define FGS_NOTIFICATION                                   0b01100101 /* 101 = 0x65 */
+#define FGS_NOTIFICATION_RESPONSE                          0b01100110 /* 102 = 0x66 */
+#define FGS_UPLINK_NAS_TRANSPORT                           0b01100111 /* 103 = 0x67 */
+#define FGS_DOWNLINK_NAS_TRANSPORT                         0b01101000 /* 104 = 0x68 */
 
-// message type for 5GS session management
+// Message types for 5GS session management (Table 9.7.2 of 3GPP TS 24.501)
 #define FGS_PDU_SESSION_ESTABLISHMENT_REQ                  0b11000001 /* 193= 0xc1 */
 #define FGS_PDU_SESSION_ESTABLISHMENT_ACC                  0b11000010 /* 194= 0xc2 */
 #define FGS_PDU_SESSION_ESTABLISHMENT_REJ                  0b11000011 /* 195= 0xc3 */
+#define FGS_PDU_SESSION_AUTH_COMMAND                       0b11000101 /* 197= 0xc5 */
+#define FGS_PDU_SESSION_AUTH_COMPLETE                      0b11000110 /* 198= 0xc6 */
+#define FGS_PDU_SESSION_AUTH_RESULT                        0b11000111 /* 199= 0xc7 */
+#define FGS_PDU_SESSION_MODIFICATION_REQ                   0b11001001 /* 201= 0xc9 */
+#define FGS_PDU_SESSION_MODIFICATION_REJ                   0b11001010 /* 202= 0xca */
+#define FGS_PDU_SESSION_MODIFICATION_COMMAND               0b11001011 /* 203= 0xcb */
+#define FGS_PDU_SESSION_MODIFICATION_COMPLETE              0b11001100 /* 204= 0xcc */
+#define FGS_PDU_SESSION_MODIFICATION_COMMAND_REJ           0b11001101 /* 205= 0xcd */
+#define FGS_PDU_SESSION_RELEASE_REQ                        0b11010001 /* 209= 0xd1 */
+#define FGS_PDU_SESSION_RELEASE_REJ                        0b11010010 /* 210= 0xd2 */
+#define FGS_PDU_SESSION_RELEASE_COMMAND                    0b11010011 /* 211= 0xd3 */
+#define FGS_PDU_SESSION_RELEASE_COMPLETE                   0b11010100 /* 212= 0xd4 */
+#define FGS_5GSM_STATUS                                    0b11010110 /* 214= 0xd6 */
 
 #define INITIAL_REGISTRATION                               0b001
 
@@ -74,6 +112,8 @@
 #define SECURITY_PROTECTED_5GS_NAS_MESSAGE_HEADER_LENGTH   7
 #define PAYLOAD_CONTAINER_LENGTH_MIN                       3
 #define PAYLOAD_CONTAINER_LENGTH_MAX                       65537
+
+// clang-format on
 
 /* List of allowed NSSAI from NAS messaging. */
 typedef struct {
@@ -116,21 +156,6 @@ typedef enum fgs_protocol_discriminator_e {
   FGS_SESSION_MANAGEMENT_MESSAGE =    0x2E,
 } fgs_protocol_discriminator_t;
 
-
-typedef struct {
-  uint8_t ex_protocol_discriminator;
-  uint8_t security_header_type;
-  uint8_t message_type;
-} mm_msg_header_t;
-
-/* Structure of security protected header */
-typedef struct {
-  fgs_protocol_discriminator_t    protocol_discriminator;
-  uint8_t                         security_header_type;
-  uint32_t                        message_authentication_code;
-  uint8_t                         sequence_number;
-} fgs_nas_message_security_header_t;
-
 typedef union {
   mm_msg_header_t                        header;
   registration_request_msg               registration_request;
@@ -141,8 +166,6 @@ typedef union {
   registration_complete_msg              registration_complete;
   fgs_uplink_nas_transport_msg           uplink_nas_transport;
 } MM_msg;
-
-
 
 typedef struct {
   MM_msg mm_msg;    /* 5GS Mobility Management messages */
@@ -172,20 +195,6 @@ typedef struct {
     } security_protected_nas_msg_header_t;
   } choice;
 } nas_msg_header_t;
-
-typedef struct {
-  uint8_t ex_protocol_discriminator;
-  uint8_t pdu_session_id;
-  uint8_t PTI;
-  uint8_t message_type;
-} fgs_sm_nas_msg_header_t;
-
-typedef struct {
-    mm_msg_header_t         plain_nas_msg_header;
-    uint8_t                 payload_container_type;
-    uint16_t                payload_container_length;
-    fgs_sm_nas_msg_header_t sm_nas_msg_header;
-} dl_nas_transport_t;
 
 nr_ue_nas_t *get_ue_nas_info(module_id_t module_id);
 void generateRegistrationRequest(as_nas_info_t *initialNasMsg, nr_ue_nas_t *nas);

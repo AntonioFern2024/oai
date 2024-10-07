@@ -19,41 +19,41 @@
  *      contact@openairinterface.org
  */
 
-/*! \file RegistrationRequest.c
- * \brief registration request procedures for gNB
- * \author Yoshio INOUE, Masayuki HARADA
- * \email yoshio.inoue@fujitsu.com,masayuki.harada@fujitsu.com
- * \date 2020
- * \version 0.1
- */
+/*! \file FGSNASSecurityModeComplete.c
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+\brief security mode complete procedures for gNB
+\author Yoshio INOUE, Masayuki HARADA
+\email: yoshio.inoue@fujitsu.com,masayuki.harada@fujitsu.com
+\date 2020
+\version 0.1
+*/
+
+#include "FGSNASSecurityModeComplete.h"
 #include <stdint.h>
+#include "FGCNasMessageContainer.h"
+#include "FGSMobileIdentity.h"
 
-#include "FGSDeregistrationRequestUEOriginating.h"
-
-int encode_fgs_deregistration_request_ue_originating(fgs_deregistration_request_ue_originating_msg *drr,
-                                                     uint8_t *buffer,
-                                                     uint32_t len)
+int encode_fgs_security_mode_complete(fgs_security_mode_complete_msg *fgs_security_mode_comp, uint8_t *buffer, uint32_t len)
 {
   int encoded = 0;
-  FGSDeregistrationType *dt = &drr->deregistrationtype;
-  *(buffer + encoded) = ((dt->switchoff & 0x1) << 7)
-                      | ((dt->reregistration_required & 0x1) << 6)
-                      | ((dt->access_type & 0x3) << 4);
+  int encode_result = 0;
 
-  int encode_result;
-  if ((encode_result = encode_nas_key_set_identifier(&drr->naskeysetidentifier, 0, buffer + encoded, len - encoded)) < 0)
+  if ((encode_result =
+           encode_5gs_mobile_identity(&fgs_security_mode_comp->fgsmobileidentity, 0x77, buffer + encoded, len - encoded))
+      < 0) { // Return in case of error
     return encode_result;
-
-  encoded++;
-
-  if ((encode_result = encode_5gs_mobile_identity(&drr->fgsmobileidentity, 0, buffer + encoded, len - encoded)) < 0)
-    return encode_result;
-  else
+  } else {
     encoded += encode_result;
+    if ((encode_result = encode_fgc_nas_message_container(&fgs_security_mode_comp->fgsnasmessagecontainer,
+                                                          0x71,
+                                                          buffer + encoded,
+                                                          len - encoded))
+        < 0) {
+      return encode_result;
+    } else {
+      encoded += encode_result;
+    }
+  }
 
   return encoded;
 }

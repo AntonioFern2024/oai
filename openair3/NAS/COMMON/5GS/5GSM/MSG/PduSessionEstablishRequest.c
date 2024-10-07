@@ -19,47 +19,35 @@
  *      contact@openairinterface.org
  */
 
-/*! \file FGSIdentityResponse.h
+/*! \file PduSessionEstablishRequest.c
 
-\brief identity response procedures for gNB
+\brief pdu session establishment request procedures
 \author Yoshio INOUE, Masayuki HARADA
 \email: yoshio.inoue@fujitsu.com,masayuki.harada@fujitsu.com
 \date 2020
 \version 0.1
 */
 
-#include <stdio.h>
-#include <stdlib.h>
+#include "PduSessionEstablishRequest.h"
 #include <stdint.h>
+#include "TLVEncoder.h"
 
-#include "ExtendedProtocolDiscriminator.h"
-#include "SecurityHeaderType.h"
-#include "SpareHalfOctet.h"
-#include "FGSMobileIdentity.h"
-#include "MessageType.h"
+int encode_pdu_session_establishment_request(pdu_session_establishment_request_msg *pdusessionestablishrequest, uint8_t *buffer)
+{
+  int encoded = 0;
 
-#ifndef FGS_IDENTITY_RESPONSE_H_
-#define FGS_IDENTITY_RESPONSE_H_
+  *(buffer + encoded) = pdusessionestablishrequest->protocoldiscriminator;
+  encoded++;
+  *(buffer + encoded) = pdusessionestablishrequest->pdusessionid;
+  encoded++;
+  *(buffer + encoded) = pdusessionestablishrequest->pti;
+  encoded++;
+  *(buffer + encoded) = pdusessionestablishrequest->pdusessionestblishmsgtype;
+  encoded++;
 
-/*
- * Message name: Identity response
- * Description: This message is sent by the UE to the AMF to provide the requested identity. See table 8.2.22.1.
- * Significance: dual
- * Direction: UE to AMF
- */
+  IES_ENCODE_U16(buffer, encoded, pdusessionestablishrequest->maxdatarate);
+  *(buffer + encoded) = pdusessionestablishrequest->pdusessiontype;
+  encoded++;
 
-typedef struct fgs_identiy_response_msg_tag {
-  /* Mandatory fields */
-  ExtendedProtocolDiscriminator           protocoldiscriminator;
-  SecurityHeaderType                      securityheadertype:4;
-  SpareHalfOctet                          sparehalfoctet:4;
-  MessageType                             messagetype;
-  FGSMobileIdentity                       fgsmobileidentity;
-
-} fgs_identiy_response_msg;
-
-int encode_identiy_response(fgs_identiy_response_msg *fgs_identity_reps, uint8_t *buffer, uint32_t len);
-
-#endif /* ! defined(FGS_IDENTITY_RESPONSE_H_) */
-
-
+  return encoded;
+}

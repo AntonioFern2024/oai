@@ -29,27 +29,41 @@
  * 2023.01.27 Vladimir Dorovskikh 16 digits IMEISV
  */
 
-#include <string.h> // memset
-#include <stdlib.h> // malloc, free
-
-#include "nas_log.h"
-#include "TLVDecoder.h"
-#include "TLVEncoder.h"
 #include "nr_nas_msg_sim.h"
-#include "aka_functions.h"
-#include "secu_defs.h"
-#include "kdf.h"
-#include "key_nas_deriver.h"
+#include <netinet/in.h>
+#include <openair3/NAS/COMMON/NR_NAS_defs.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include "5GS/NAS_FGS_common.h"
+#include "AuthenticationResponseParameter.h"
+#include "FGCNasMessageContainer.h"
+#include "FGSDeregistrationRequestUEOriginating.h"
+#include "FGSDeregistrationType.h"
+#include "LOG/log.h"
+#include "NasKeySetIdentifier.h"
+#include "NrUESecurityCapability.h"
+#include "OctetString.h"
 #include "PduSessionEstablishRequest.h"
 #include "PduSessionEstablishmentAccept.h"
 #include "RegistrationAccept.h"
-#include "FGSDeregistrationRequestUEOriginating.h"
-#include "intertask_interface.h"
+#include "SORTransparentContainer.h"
+#include "T.h"
+#include "TLVEncoder.h"
+#include "aka_functions.h"
+#include "assertions.h"
+#include "byte_array.h"
 #include "common/utils/tun_if.h"
-#include <openair3/NAS/COMMON/NR_NAS_defs.h>
-#include "openair2/SDAP/nr_sdap/nr_sdap.h"
-#include "openair3/SECU/nas_stream_eia2.h"
+#include "commonDef.h"
+#include "intertask_interface.h"
+#include "kdf.h"
+#include "key_nas_deriver.h"
+#include "nas_log.h"
+#include "openair3/UICC/usim_interface.h"
 #include "openair3/UTILS/conversions.h"
+#include "secu_defs.h"
+#include "utils.h"
 
 #define MAX_NAS_UE 4
 
@@ -241,7 +255,7 @@ int mm_msg_encode(MM_msg *mm_msg, uint8_t *buffer, uint32_t len)
   len -= header_result;
 
   switch (msg_type) {
-    case REGISTRATION_REQUEST:
+    case FGS_REGISTRATION_REQUEST:
       encode_result = encode_registration_request(&mm_msg->registration_request, buffer, len);
       break;
     case FGS_IDENTITY_RESPONSE:
@@ -503,14 +517,14 @@ void generateRegistrationRequest(as_nas_info_t *initialNasMsg, nr_ue_nas_t *nas)
   // set header
   mm_msg->header.ex_protocol_discriminator = FGS_MOBILITY_MANAGEMENT_MESSAGE;
   mm_msg->header.security_header_type = PLAIN_5GS_MSG;
-  mm_msg->header.message_type = REGISTRATION_REQUEST;
+  mm_msg->header.message_type = FGS_REGISTRATION_REQUEST;
 
   // set registration request
   mm_msg->registration_request.protocoldiscriminator = FGS_MOBILITY_MANAGEMENT_MESSAGE;
   size += 1;
   mm_msg->registration_request.securityheadertype = PLAIN_5GS_MSG;
   size += 1;
-  mm_msg->registration_request.messagetype = REGISTRATION_REQUEST;
+  mm_msg->registration_request.messagetype = FGS_REGISTRATION_REQUEST;
   size += 1;
   mm_msg->registration_request.fgsregistrationtype = INITIAL_REGISTRATION;
   mm_msg->registration_request.naskeysetidentifier.naskeysetidentifier = 1;
@@ -783,7 +797,7 @@ static void generateRegistrationComplete(nr_ue_nas_t *nas,
   sp_msg->plain.mm_msg.registration_complete.securityheadertype = PLAIN_5GS_MSG;
   sp_msg->plain.mm_msg.registration_complete.sparehalfoctet = 0;
   length += 1;
-  sp_msg->plain.mm_msg.registration_complete.messagetype = REGISTRATION_COMPLETE;
+  sp_msg->plain.mm_msg.registration_complete.messagetype = FGS_REGISTRATION_COMPLETE;
   length += 1;
 
   if (sortransparentcontainer) {
@@ -1324,7 +1338,7 @@ void *nas_nrue(void *args_p)
 
         int msg_type = get_msg_type(pdu_buffer, pdu_length);
 
-        if (msg_type == REGISTRATION_ACCEPT) {
+        if (msg_type == FGS_REGISTRATION_ACCEPT) {
           handle_registration_accept(nas, pdu_buffer, pdu_length);
         } else if (msg_type == FGS_PDU_SESSION_ESTABLISHMENT_ACC) {
           capture_pdu_session_establishment_accept_msg(pdu_buffer, pdu_length);
@@ -1392,8 +1406,8 @@ void *nas_nrue(void *args_p)
         /* special cases accepted without protection */
         if (security_state == NAS_SECURITY_UNPROTECTED) {
           int msg_type = get_msg_type(pdu_buffer, pdu_length);
-          /* for the moment, only FGS_DEREGISTRATION_ACCEPT is accepted */
-          if (msg_type == FGS_DEREGISTRATION_ACCEPT)
+          /* for the moment, only FGS_DEREGISTRATION_ACCEPT_UE_ORIGINATING is accepted */
+          if (msg_type == FGS_DEREGISTRATION_ACCEPT_UE_ORIGINATING)
             security_state = NAS_SECURITY_INTEGRITY_PASSED;
         }
 
@@ -1417,38 +1431,15 @@ void *nas_nrue(void *args_p)
           case FGS_DOWNLINK_NAS_TRANSPORT:
             decodeDownlinkNASTransport(&initialNasMsg, pdu_buffer);
             break;
-          case REGISTRATION_ACCEPT:
+          case FGS_REGISTRATION_ACCEPT:
             handle_registration_accept(nas, pdu_buffer, pdu_length);
             break;
-          case FGS_DEREGISTRATION_ACCEPT:
+          case FGS_DEREGISTRATION_ACCEPT_UE_ORIGINATING:
             LOG_I(NAS, "received deregistration accept\n");
             break;
-          case FGS_PDU_SESSION_ESTABLISHMENT_ACC: {
-            uint8_t offset = 0;
-            uint8_t *payload_container = pdu_buffer;
-            offset += SECURITY_PROTECTED_5GS_NAS_MESSAGE_HEADER_LENGTH;
-            uint32_t payload_container_length = htons(((dl_nas_transport_t *)(pdu_buffer + offset))->payload_container_length);
-            if ((payload_container_length >= PAYLOAD_CONTAINER_LENGTH_MIN)
-                && (payload_container_length <= PAYLOAD_CONTAINER_LENGTH_MAX))
-              offset += (PLAIN_5GS_NAS_MESSAGE_HEADER_LENGTH + 3);
-            if (offset < NAS_CONN_ESTABLI_CNF(msg_p).nasMsg.length)
-              payload_container = pdu_buffer + offset;
-
-            while (offset < payload_container_length) {
-              if (*(payload_container + offset) == 0x29) { // PDU address IEI
-                if ((*(payload_container + offset + 1) == 0x05) && (*(payload_container + offset + 2) == 0x01)) { // IPV4
-                  uint8_t *ip_p = payload_container + offset + 3;
-                  char ip[20];
-                  snprintf(ip, sizeof(ip), "%d.%d.%d.%d", *(ip_p), *(ip_p + 1), *(ip_p + 2), *(ip_p + 3));
-                  LOG_I(NAS, "Received PDU Session Establishment Accept, UE IP: %s\n", ip);
-                  tun_config(1, ip, NULL, "oaitun_ue");
-                  setup_ue_ipv4_route(1, ip, "oaitun_ue");
-                  break;
-                }
-              }
-              offset++;
-            }
-          } break;
+          case FGS_PDU_SESSION_ESTABLISHMENT_ACC:
+            capture_pdu_session_establishment_accept_msg(pdu_buffer, pdu_length);
+            break;
           case FGS_PDU_SESSION_ESTABLISHMENT_REJ:
             LOG_E(NAS, "Received PDU Session Establishment reject\n");
             break;

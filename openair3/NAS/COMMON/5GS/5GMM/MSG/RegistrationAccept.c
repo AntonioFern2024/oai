@@ -33,7 +33,6 @@
 #include <string.h>
 #include <stdint.h>
 
-
 #include "TLVEncoder.h"
 #include "TLVDecoder.h"
 #include "RegistrationAccept.h"
@@ -45,7 +44,9 @@ int decode_registration_accept(registration_accept_msg *registration_accept, con
   int decoded_result = 0;
 
   /* Decoding mandatory fields */
-  if ((decoded_result = decode_fgs_registration_result(&registration_accept->fgsregistrationresult, 0, *(buffer + decoded), len - decoded)) < 0)
+  if ((decoded_result =
+           decode_fgs_registration_result(&registration_accept->fgsregistrationresult, 0, *(buffer + decoded), len - decoded))
+      < 0)
     return decoded_result;
 
   decoded += decoded_result;
@@ -70,7 +71,6 @@ int encode_registration_accept(registration_accept_msg *registration_accept, uin
 
   LOG_FUNC_IN;
 
-
   *(buffer + encoded) = encode_fgs_registration_result(&registration_accept->fgsregistrationresult);
   encoded = encoded + 2;
 
@@ -84,4 +84,3 @@ int encode_registration_accept(registration_accept_msg *registration_accept, uin
   // todo ,Encoding optional fields
   LOG_FUNC_RETURN(encoded);
 }
-

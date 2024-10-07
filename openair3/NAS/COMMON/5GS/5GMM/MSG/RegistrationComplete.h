@@ -28,35 +28,29 @@
 \version 0.1
 */
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <stdint.h>
-
 #include "ExtendedProtocolDiscriminator.h"
-#include "SecurityHeaderType.h"
-#include "SpareHalfOctet.h"
 #include "MessageType.h"
 #include "SORTransparentContainer.h"
+#include "SecurityHeaderType.h"
+#include "SpareHalfOctet.h"
 
 #ifndef REGISTRATION_COMPLETE_H_
 #define REGISTRATION_COMPLETE_H_
 
-
 typedef struct registration_complete_msg_tag {
   /* Mandatory fields */
-  ExtendedProtocolDiscriminator           protocoldiscriminator;
-  SecurityHeaderType                      securityheadertype:4;
-  SpareHalfOctet                          sparehalfoctet:4;
-  MessageType                             messagetype;
+  ExtendedProtocolDiscriminator protocoldiscriminator;
+  SecurityHeaderType securityheadertype: 4;
+  SpareHalfOctet sparehalfoctet: 4;
+  MessageType messagetype;
 
   /* Optional fields */
-  SORTransparentContainer                 sortransparentcontainer;
+  SORTransparentContainer sortransparentcontainer;
 } registration_complete_msg;
-
 
 int decode_registration_complete(registration_complete_msg *registrationcomplete, uint8_t *buffer, uint32_t len);
 
 int encode_registration_complete(registration_complete_msg *registrationcomplete, uint8_t *buffer, uint32_t len);
 
 #endif /* ! defined(REGISTRATION_COMPLETE_H_) */
-

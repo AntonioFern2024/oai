@@ -576,6 +576,9 @@ include_directories("${OPENAIR3_DIR}/NAS/COMMON")
 include_directories("${OPENAIR3_DIR}/NAS/COMMON/API/NETWORK")
 include_directories("${OPENAIR3_DIR}/NAS/COMMON/EMM/MSG")
 include_directories("${OPENAIR3_DIR}/NAS/COMMON/ESM/MSG")
+include_directories("${OPENAIR3_DIR}/NAS/COMMON/5GS")
+include_directories("${OPENAIR3_DIR}/NAS/COMMON/5GS/5GMM/MSG")
+include_directories("${OPENAIR3_DIR}/NAS/COMMON/5GS/5GSM/MSG")
 include_directories("${OPENAIR3_DIR}/NAS/UE/ESM")
 include_directories("${OPENAIR3_DIR}/NAS/UE/EMM")
 include_directories("${OPENAIR3_DIR}/NAS/UE/API/USER")
@@ -1753,19 +1756,6 @@ set(libnas_ue_esm_sap_OBJS
   ${NAS_SRC}UE/ESM/SAP/esm_sap.c
   )
 
-set(libnrnas_emm_msg_OBJS
-  ${NAS_SRC}COMMON/EMM/MSG/RegistrationRequest.c
-  ${NAS_SRC}COMMON/EMM/MSG/RegistrationAccept.c
-  ${NAS_SRC}COMMON/EMM/MSG/FGSIdentityResponse.c
-  ${NAS_SRC}COMMON/EMM/MSG/FGSAuthenticationResponse.c
-  ${NAS_SRC}COMMON/EMM/MSG/FGSNASSecurityModeComplete.c
-  ${NAS_SRC}COMMON/EMM/MSG/RegistrationComplete.c
-  ${NAS_SRC}COMMON/EMM/MSG/FGSUplinkNasTransport.c
-  ${NAS_SRC}COMMON/ESM/MSG/PduSessionEstablishRequest.c
-  ${NAS_SRC}COMMON/ESM/MSG/PduSessionEstablishmentAccept.c
-  ${NAS_SRC}COMMON/EMM/MSG/FGSDeregistrationRequestUEOriginating.c
-  )
-
 set(libnrnas_ies_OBJS
   ${NAS_SRC}COMMON/IES/ExtendedProtocolDiscriminator.c
   ${NAS_SRC}COMMON/IES/FGSMobileIdentity.c
@@ -2096,6 +2086,7 @@ target_link_libraries(nr-uesoftmodem PRIVATE
 
 target_link_libraries(nr-uesoftmodem PRIVATE pthread m CONFIG_LIB rt nr_ue_phy_meas)
 target_link_libraries(nr-uesoftmodem PRIVATE ${T_LIB})
+target_link_libraries(nr-uesoftmodem PRIVATE LIB_5GNAS)
 target_link_libraries(nr-uesoftmodem PRIVATE asn1_nr_rrc_hdrs asn1_lte_rrc_hdrs)
 
 add_dependencies( nr-uesoftmodem ldpc_orig ldpc_optim ldpc_optim8seg ldpc )
