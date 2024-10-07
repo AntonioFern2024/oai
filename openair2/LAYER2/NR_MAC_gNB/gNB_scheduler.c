@@ -177,6 +177,11 @@ bool is_dl_slot(sub_frame_t slot, const tdd_bitmap_t *tdd_bmp)
   return ((tdd_bmp[slot].slot_type == TDD_NR_MIXED_SLOT) || (tdd_bmp[slot].slot_type == TDD_NR_DOWNLINK_SLOT));
 }
 
+bool is_mixed_slot(sub_frame_t slot, const tdd_bitmap_t *tdd_bmp)
+{
+  return ((tdd_bmp[slot].slot_type == TDD_NR_MIXED_SLOT));
+}
+
 /* the structure nfapi_nr_ul_tti_request_t is very big, let's copy only what is necessary */
 static void copy_ul_tti_req(nfapi_nr_ul_tti_request_t *to, nfapi_nr_ul_tti_request_t *from)
 {
