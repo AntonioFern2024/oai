@@ -159,7 +159,7 @@ static int get_pucch_index(int frame, int slot, const tdd_config_t *tdd_cfg, int
   // ((slot % nr_slots_period) - first_ul_slot_period) gives the progressive number of the slot in this TDD period
   int ul_period_slot = 0;
   for (int i = 0; i <= slot % nr_slots_period; i++) {
-    if (is_ul_slot(i, tdd_cfg->tdd_slot_bitmap)) {
+    if (is_ul_slot(i, tdd_cfg)) {
       ul_period_slot++;
     }
   }
@@ -184,7 +184,7 @@ void nr_schedule_pucch(gNB_MAC_INST *nrmac,
   /* already mutex protected: held in gNB_dlsch_ulsch_scheduler() */
   NR_SCHED_ENSURE_LOCKED(&nrmac->sched_lock);
 
-  if (!is_xlsch_in_slot(nrmac->ulsch_slot_bitmap[slotP / 64], slotP))
+  if (!is_ul_slot(slotP, &nrmac->tdd_config))
     return;
 
   UE_iterator(nrmac->UE_info.list, UE) {
@@ -260,7 +260,7 @@ void nr_csi_meas_reporting(int Mod_idP,
       if ((sched_frame * n_slots_frame + sched_slot - offset) % period != 0)
         continue;
 
-      AssertFatal(is_xlsch_in_slot(nrmac->ulsch_slot_bitmap[sched_slot / 64], sched_slot), "CSI reporting slot %d is not set for an uplink slot\n", sched_slot);
+      AssertFatal(is_ul_slot(sched_slot, &nrmac->tdd_config), "CSI reporting slot %d is not set for an uplink slot\n", sched_slot);
       LOG_D(NR_MAC, "CSI reporting in frame %d slot %d CSI report ID %ld\n", sched_frame, sched_slot, csirep->reportConfigId);
 
       const NR_PUCCH_ResourceSet_t *pucchresset = pucch_Config->resourceSetToAddModList->list.array[1]; // set with formats >1
@@ -1287,7 +1287,7 @@ int nr_acknack_scheduling(gNB_MAC_INST *mac,
     const int pucch_slot = (slot + pdsch_to_harq_feedback[f] + NTN_gNB_Koffset) % n_slots_frame;
     // check if the slot is UL
     sub_frame_t mod_slot = pucch_slot % tdd_cfg->tdd_numb_slots_period;
-    if (!is_ul_slot(mod_slot, tdd_cfg->tdd_slot_bitmap))
+    if (!is_ul_slot(mod_slot, tdd_cfg))
       continue;
     const int pucch_frame = (frame + ((slot + pdsch_to_harq_feedback[f] + NTN_gNB_Koffset) / n_slots_frame)) % MAX_FRAME_NUMBER;
     // we store PUCCH resources according to slot, TDD configuration and size of the vector containing PUCCH structures
@@ -1390,7 +1390,7 @@ void nr_sr_reporting(gNB_MAC_INST *nrmac, frame_t SFN, sub_frame_t slot)
   /* already mutex protected: held in gNB_dlsch_ulsch_scheduler() */
   NR_SCHED_ENSURE_LOCKED(&nrmac->sched_lock);
 
-  if (!is_xlsch_in_slot(nrmac->ulsch_slot_bitmap[slot / 64], slot))
+  if (!is_ul_slot(slot, &nrmac->tdd_config))
     return;
   const int CC_id = 0;
   UE_iterator(nrmac->UE_info.list, UE) {

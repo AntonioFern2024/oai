@@ -276,7 +276,7 @@ void schedule_nr_prach(module_id_t module_idP, frame_t frameP, sub_frame_t slotP
   nfapi_nr_ul_tti_request_t *UL_tti_req = &RC.nrmac[module_idP]->UL_tti_req_ahead[0][index];
   nfapi_nr_config_request_scf_t *cfg = &RC.nrmac[module_idP]->config[0];
 
-  if (is_nr_UL_slot(scc->tdd_UL_DL_ConfigurationCommon, slotP, cc->frame_type)) {
+  if (is_ul_slot(slotP, &RC.nrmac[module_idP]->tdd_config)) {
     const NR_RACH_ConfigGeneric_t *rach_ConfigGeneric = &rach_ConfigCommon->rach_ConfigGeneric;
     uint8_t config_index = rach_ConfigGeneric->prach_ConfigurationIndex;
     uint8_t N_dur, N_t_slot, start_symbol = 0, N_RA_slot;
@@ -590,7 +590,7 @@ static void nr_generate_Msg3_retransmission(module_id_t module_idP,
   const int sched_frame = (frame + (slot + K2) / nr_slots_per_frame[mu]) % MAX_FRAME_NUMBER;
   const int sched_slot = (slot + K2) % nr_slots_per_frame[mu];
 
-  if (is_xlsch_in_slot(nr_mac->ulsch_slot_bitmap[sched_slot / 64], sched_slot)) {
+  if (is_ul_slot(sched_slot, &nr_mac->tdd_config)) {
     const int n_slots_frame = nr_slots_per_frame[mu];
     NR_beam_alloc_t beam_ul = beam_allocation_procedure(&nr_mac->beam_info,
                                                               sched_frame,
@@ -762,7 +762,6 @@ static void nr_generate_Msg3_retransmission(module_id_t module_idP,
 static bool get_feasible_msg3_tda(frame_type_t frame_type,
                                   const NR_ServingCellConfigCommon_t *scc,
                                   int mu_delta,
-                                  uint64_t ulsch_slot_bitmap[3],
                                   const NR_PUSCH_TimeDomainResourceAllocationList_t *tda_list,
                                   int slots_per_frame,
                                   int frame,
@@ -784,7 +783,7 @@ static bool get_feasible_msg3_tda(frame_type_t frame_type,
     int abs_slot = slot + k2 + mu_delta;
     int temp_frame = (frame + (abs_slot / slots_per_frame)) & 1023;
     int temp_slot = abs_slot % slots_per_frame; // msg3 slot according to 8.3 in 38.213
-    if ((frame_type == TDD) && !is_xlsch_in_slot(ulsch_slot_bitmap[temp_slot / 64], temp_slot))
+    if ((frame_type == TDD) && !is_ul_slot(temp_slot, tdd_config))
       continue;
 
     // check if enough symbols in case of mixed slot
@@ -1215,7 +1214,7 @@ static void nr_generate_Msg2(module_id_t module_idP,
   gNB_MAC_INST *nr_mac = RC.nrmac[module_idP];
 
   // no DL -> cannot send Msg2
-  if (!is_xlsch_in_slot(nr_mac->dlsch_slot_bitmap[slotP / 64], slotP)) {
+  if (!is_dl_slot(slotP, &nr_mac->tdd_config)) {
     return;
   }
 
@@ -1246,7 +1245,6 @@ static void nr_generate_Msg2(module_id_t module_idP,
   bool ret = get_feasible_msg3_tda(cc->frame_type,
                                    scc,
                                    DELTA[ul_bwp->scs],
-                                   nr_mac->ulsch_slot_bitmap,
                                    ul_bwp->tdaList_Common,
                                    nr_slots_per_frame[ul_bwp->scs],
                                    frameP,
@@ -1752,7 +1750,7 @@ static void nr_generate_Msg4(module_id_t module_idP,
   NR_UE_DL_BWP_t *dl_bwp = &ra->DL_BWP;
 
   // if it is a DL slot, if the RA is in MSG4 state
-  if (is_xlsch_in_slot(nr_mac->dlsch_slot_bitmap[slotP / 64], slotP)) {
+  if (is_dl_slot(slotP, &nr_mac->tdd_config)) {
 
     NR_ServingCellConfigCommon_t *scc = cc->ServingCellConfigCommon;
     NR_SearchSpace_t *ss = ra->ra_ss;
