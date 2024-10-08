@@ -1218,6 +1218,11 @@ static void rrc_handle_RRCReestablishmentRequest(gNB_RRC_INST *rrc,
     cu_add_f1_ue_data(UE->rrc_ue_id, &ue_data);
     nr_rrc_finalize_ho(UE);
   } else if (ho_reestab_on_target) {
+    /* TODO can this happen? this would mean the UE completed reconfiguration.
+     * Can we have a reestablishment when the current reconfiguration failed?
+     * The reconfiguration we can send again is the original handover, so we
+     * trigger handover again */
+
     /* the UE came back on the target DU while doing handover, release at the
      * source and consider the handover completed */
     LOG_A(NR_RRC, "handover for UE %d/RNTI %04x complete!\n", UE->rrc_ue_id, UE->rnti);
