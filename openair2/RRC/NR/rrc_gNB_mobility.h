@@ -28,12 +28,15 @@ typedef struct gNB_RRC_INST_s gNB_RRC_INST;
 typedef struct gNB_RRC_UE_s gNB_RRC_UE_t;
 typedef struct nr_rrc_du_container_t nr_rrc_du_container_t;
 
+typedef struct NR_CellGroupConfig NR_CellGroupConfig_t;
+
 typedef void (*ho_cancel_t)(gNB_RRC_INST *rrc, gNB_RRC_UE_t *ue);
 typedef struct nr_ho_source_cu {
   const nr_rrc_du_container_t *du;
   uint32_t du_ue_id;
   // necessary in F1 to store what was the old RNTI (for reestablishment)
   rnti_t old_rnti;
+  NR_CellGroupConfig_t *old_cellGroupConfig;
   ho_cancel_t ho_cancel;
 } nr_ho_source_cu_t;
 

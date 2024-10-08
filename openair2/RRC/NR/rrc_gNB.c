@@ -1211,6 +1211,11 @@ static void rrc_handle_RRCReestablishmentRequest(gNB_RRC_INST *rrc,
 
     source_ctx->ho_cancel(rrc, UE);
 
+    /* we need the original CellGroupConfig */
+    ASN_STRUCT_FREE(asn_DEF_NR_CellGroupConfig, UE->masterCellGroup);
+    UE->masterCellGroup = source_ctx->old_cellGroupConfig;
+    source_ctx->old_cellGroupConfig = NULL;
+
     /* update to old DU assoc id -- RNTI + secondary DU UE ID further below */
     f1_ue_data_t ue_data = cu_get_f1_ue_data(UE->rrc_ue_id);
     ue_data.du_assoc_id = source_ctx->du->assoc_id;

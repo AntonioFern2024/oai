@@ -115,6 +115,9 @@ static void nr_initiate_handover(const gNB_RRC_INST *rrc,
     ho_ctx->source->du = source_du;
     ho_ctx->source->du_ue_id = ue_data.secondary_ue;
     ho_ctx->source->old_rnti = ue->rnti;
+
+    int result = asn_copy(&asn_DEF_NR_CellGroupConfig, (void **)&ho_ctx->source->old_cellGroupConfig, ue->masterCellGroup);
+    AssertFatal(result == 0, "error during asn_copy() of CellGroupConfig\n");
   }
   ue->ho_context = ho_ctx;
   LOG_A(NR_RRC,
@@ -326,6 +329,8 @@ void nr_rrc_trigger_f1_ho(gNB_RRC_INST *rrc, gNB_RRC_UE_t *ue, nr_rrc_du_contain
 
 void nr_rrc_finalize_ho(gNB_RRC_UE_t *ue)
 {
+  if (ue->ho_context->source)
+    ASN_STRUCT_FREE(asn_DEF_NR_CellGroupConfig, ue->ho_context->source->old_cellGroupConfig);
   free_ho_ctx(ue->ho_context);
   ue->ho_context = NULL;
 }
