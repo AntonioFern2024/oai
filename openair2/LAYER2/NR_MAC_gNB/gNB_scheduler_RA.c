@@ -786,17 +786,18 @@ static bool get_feasible_msg3_tda(frame_type_t frame_type,
     if ((frame_type == TDD) && !is_ul_slot(temp_slot, tdd_config))
       continue;
 
+    tdd_bitmap_t *tdd_slot_bitmap = tdd_config->period_cfg.tdd_slot_bitmap;
     // check if enough symbols in case of mixed slot
-    bool is_mixed = (tdd_config->tdd_slot_bitmap[temp_slot % tdd_period_slot].slot_type == TDD_NR_MIXED_SLOT);
+    bool is_mixed = (tdd_slot_bitmap[temp_slot % tdd_period_slot].slot_type == TDD_NR_MIXED_SLOT);
     // bool has_mixed = tdd_config->tdd_slot_bitmap[temp_slot%tdd_period_slot].num_ul_symbols  != 0 ||
     // tdd_config->tdd_slot_bitmap[temp_slot%tdd_period_slot].num_dl_symbols != 0;
     // bool is_mixed = has_mixed && ((temp_slot % tdd_period_slot) == tdd->nrofDownlinkSlots);
     // if the mixed slot has not enough symbols, skip
-    if (is_mixed && tdd_config->tdd_slot_bitmap[temp_slot % tdd_period_slot].num_ul_symbols < 3)
+    if (is_mixed && tdd_slot_bitmap[temp_slot % tdd_period_slot].num_ul_symbols < 3)
       continue;
 
-    uint16_t slot_mask = is_mixed ? SL_to_bitmap(14 - tdd_config->tdd_slot_bitmap[temp_slot % tdd_period_slot].num_ul_symbols,
-                                                 tdd_config->tdd_slot_bitmap[temp_slot % tdd_period_slot].num_ul_symbols)
+    uint16_t slot_mask = is_mixed ? SL_to_bitmap(NR_NUMBER_OF_SYMBOLS_PER_SLOT - tdd_slot_bitmap[temp_slot % tdd_period_slot].num_ul_symbols,
+                                                 tdd_slot_bitmap[temp_slot % tdd_period_slot].num_ul_symbols)
                                   : 0x3fff;
     long startSymbolAndLength = tda_list->list.array[i]->startSymbolAndLength;
     int start, nr;

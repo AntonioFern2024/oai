@@ -149,7 +149,7 @@ static int get_pucch_index(int frame, int slot, const tdd_config_t *tdd_cfg, int
 {
   // PUCCH structures are indexed by slot in the PUCCH period determined by sched_pucch_size number of UL slots
   // this functions return the index to the structure for slot passed to the function
-  const int n_ul_slots_period = tdd_cfg->num_ul_slots;
+  const int n_ul_slots_period = tdd_cfg->period_cfg.num_ul_slots;
   const int nr_slots_period = tdd_cfg->tdd_numb_slots_period;
   const int n_ul_slots_frame = tdd_cfg->tdd_numb_period_frame * n_ul_slots_period;
   // (frame * n_ul_slots_frame) adds up the number of UL slots in the previous frames

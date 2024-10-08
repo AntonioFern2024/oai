@@ -343,8 +343,8 @@ static void config_csirs(const NR_ServingCellConfigCommon_t *servingcellconfigco
 
     const int n_slots_frame = slotsperframe[*servingcellconfigcommon->ssbSubcarrierSpacing];
     const int nb_slots_per_period = tdd ? n_slots_frame / tdd_conf->tdd_numb_period_frame : n_slots_frame;
-    const int nb_dl_slots_period = tdd ? tdd_conf->num_dl_slots : n_slots_frame;
-    const int n_ul_slots_period = tdd ? tdd_conf->num_dl_slots : n_slots_frame;
+    const int nb_dl_slots_period = tdd ? tdd_conf->period_cfg.num_dl_slots : n_slots_frame;
+    const int n_ul_slots_period = tdd ? tdd_conf->period_cfg.num_dl_slots : n_slots_frame;
     const int ideal_period = set_ideal_period(nb_slots_per_period, n_ul_slots_period); // same periodicity as CSI measurement report
 
     if(!csi_MeasConfig->nzp_CSI_RS_ResourceToAddModList)
@@ -592,7 +592,7 @@ static struct NR_SRS_Resource__resourceType__periodic *configure_periodic_srs(co
   tdd_config_t tdd_config = nrmac->tdd_config;
   int mu = *scc->ssbSubcarrierSpacing;
   const int n_slots_frame = slotsperframe[mu];
-  const int n_ul_slots_period = tdd_config.is_tdd ? tdd_config.num_ul_slots : n_slots_frame;
+  const int n_ul_slots_period = tdd_config.is_tdd ? tdd_config.period_cfg.num_ul_slots : n_slots_frame;
   const int n_slots_period = tdd_config.tdd_numb_slots_period;
   int first_ul_slot_period = 0;
   int offset = 0;
@@ -944,7 +944,7 @@ void nr_rrc_config_ul_tda(NR_ServingCellConfigCommon_t *scc, int min_fb_delay){
   tdd_config_t tdd_config;
   uint8_t DELTA[4]= {2,3,4,6}; // Delta parameter for Msg3
   int mu = scc->uplinkConfigCommon->initialUplinkBWP->genericParameters.subcarrierSpacing;
-  int tdd_period = get_tdd_period(scc->tdd_UL_DL_ConfigurationCommon, tdd_config.tdd_slot_bitmap);
+  int tdd_period = get_tdd_period(scc->tdd_UL_DL_ConfigurationCommon, tdd_config.period_cfg.tdd_slot_bitmap);
   tdd_config.tdd_numb_period_frame = get_nb_periods_per_frame(tdd_period);
   tdd_config.tdd_numb_slots_period = ((1 << mu) * 10) / tdd_config.tdd_numb_period_frame;
   tdd_config.is_tdd = (scc->tdd_UL_DL_ConfigurationCommon != NULL);
@@ -1597,7 +1597,7 @@ static void set_csi_meas_periodicity(const NR_ServingCellConfigCommon_t *scc, NR
 
   const bool tdd = nrmac->tdd_config.is_tdd;
   const int n_slots_frame = slotsperframe[*scc->ssbSubcarrierSpacing];
-  const int n_ul_slots_period = tdd ? nrmac->tdd_config.num_ul_slots : n_slots_frame;
+  const int n_ul_slots_period = tdd ? nrmac->tdd_config.period_cfg.num_ul_slots : n_slots_frame;
   const int n_slots_period = tdd ? nrmac->tdd_config.tdd_numb_slots_period : n_slots_frame;
   const int ideal_period = set_ideal_period(n_slots_period, n_ul_slots_period);
   int first_ul_slot_period = 0;

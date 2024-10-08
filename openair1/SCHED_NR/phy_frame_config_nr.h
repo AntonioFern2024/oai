@@ -40,18 +40,19 @@
 
 /*************** FUNCTIONS *****************************************/
 
-/** \brief This function processes tdd dedicated configuration for nr
- *  @param frame_parms NR DL Frame parameters
- *  @param dl_UL_TransmissionPeriodicity periodicity
- *  @param nrofDownlinkSlots number of downlink slots
- *  @param nrofDownlinkSymbols number of downlink symbols
- *  @param nrofUplinkSlots number of uplink slots
- *  @param nrofUplinkSymbols number of uplink symbols
-    @returns 0 if tdd dedicated configuration has been properly set or -1 on error with message */
-
-int set_tdd_config_nr(nfapi_nr_config_request_scf_t *cfg, int mu,
-                       int nrofDownlinkSlots, int nrofDownlinkSymbols,
-                       int nrofUplinkSlots,   int nrofUplinkSymbols);
+/** \brief This function processes TDD dedicated configuration for NR
+ *         and generates bitmap for uplink symbol for each slot
+ *         for several frames (if period_cfg is provided)
+ *         or for one frame (if tdd_config is provided)
+ *         see TS 38.213 11.1 Slot configuration
+ *  @param cfg NR config request structure pointer
+ *  @param mu NR numerology index
+ *  @param tdd_config TDD configuration pointer
+ *  @param period_cfg Frame configuration structure pointer
+ *  @returns nb_periods_per_frame if TDD has been properly configurated
+ *           -1 tdd configuration can not be done
+ */
+int set_tdd_config_nr(nfapi_nr_config_request_scf_t *cfg, int mu, tdd_config_t *tdd_config, tdd_period_config_t *period_cfg);
 
 /** \brief This function adds a slot configuration to current dedicated configuration for nr
  *  @param frame_parms NR DL Frame parameters

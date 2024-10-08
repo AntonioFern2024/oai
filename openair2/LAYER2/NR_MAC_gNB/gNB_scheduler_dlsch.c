@@ -65,8 +65,9 @@ int get_dl_tda(const gNB_MAC_INST *nrmac, int slot)
   int slot_tdd_period = slot % nrmac->tdd_config.tdd_numb_slots_period;
 
   // if there is a mixed slot where we can transmit DL
-  if (tdd && (nrmac->tdd_config.tdd_slot_bitmap[slot_tdd_period].num_dl_symbols > 1)
-      && (nrmac->tdd_config.tdd_slot_bitmap[slot_tdd_period].slot_type == TDD_NR_MIXED_SLOT)) {
+  const tdd_bitmap_t *tdd_slot_bitmap = nrmac->tdd_config.period_cfg.tdd_slot_bitmap;
+  if (tdd && (tdd_slot_bitmap[slot_tdd_period].num_dl_symbols > 1)
+      && (tdd_slot_bitmap[slot_tdd_period].slot_type == TDD_NR_MIXED_SLOT)) {
     return 2;
   }
   return 0; // if FDD or not mixed slot in TDD, for now use default TDA

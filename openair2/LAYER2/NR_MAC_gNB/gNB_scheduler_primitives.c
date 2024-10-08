@@ -2540,7 +2540,7 @@ void set_sched_pucch_list(NR_UE_sched_ctrl_t *sched_ctrl,
 {
   const int NTN_gNB_Koffset = get_NTN_Koffset(scc);
   const int nr_slots_period = tdd_cfg->tdd_numb_slots_period;
-  const int n_ul_slots_period = tdd_cfg->num_ul_slots;
+  const int n_ul_slots_period = tdd_cfg->period_cfg.num_ul_slots;
 
   // PUCCH list size is given by the number of UL slots in the PUCCH period
   // the length PUCCH period is determined by max_fb_time since we may need to prepare PUCCH for ACK/NACK max_fb_time slots ahead

@@ -288,24 +288,25 @@ static int8_t set_tdd_bmap_period(NR_TDD_UL_DL_Pattern_t pattern, tdd_config_t *
         n_ul_symbols);
 
   int8_t total_slot = !(n_ul_symbols + n_dl_symbols) ? n_dl_slot + n_ul_slot : n_dl_slot + n_ul_slot + 1;
-  tdd_config->num_dl_slots += (n_dl_slot + (n_dl_symbols > 0));
-  tdd_config->num_ul_slots += (n_ul_slot + (n_ul_symbols > 0));
+  tdd_period_config_t *period_cfg = &tdd_config->period_cfg;
+  period_cfg->num_dl_slots += (n_dl_slot + (n_dl_symbols > 0));
+  period_cfg->num_ul_slots += (n_ul_slot + (n_ul_symbols > 0));
 
   for (int i = 0; i < total_slot; i++) {
     if (i < n_dl_slot)
-      tdd_config->tdd_slot_bitmap[i + curr_total_slot].slot_type = TDD_NR_DOWNLINK_SLOT;
+      period_cfg->tdd_slot_bitmap[i + curr_total_slot].slot_type = TDD_NR_DOWNLINK_SLOT;
     else if ((i == n_dl_slot) && (n_ul_symbols + n_dl_symbols)) {
       if (n_dl_symbols && n_ul_symbols){
-        tdd_config->tdd_slot_bitmap[i + curr_total_slot].slot_type = TDD_NR_MIXED_SLOT;
+        period_cfg->tdd_slot_bitmap[i + curr_total_slot].slot_type = TDD_NR_MIXED_SLOT;
       }else if(n_dl_symbols){
-        tdd_config->tdd_slot_bitmap[i + curr_total_slot].slot_type = TDD_NR_DOWNLINK_SLOT;
+        period_cfg->tdd_slot_bitmap[i + curr_total_slot].slot_type = TDD_NR_DOWNLINK_SLOT;
       }else if(n_ul_symbols){
-        tdd_config->tdd_slot_bitmap[i + curr_total_slot].slot_type = TDD_NR_UPLINK_SLOT;
+        period_cfg->tdd_slot_bitmap[i + curr_total_slot].slot_type = TDD_NR_UPLINK_SLOT;
       }
-      tdd_config->tdd_slot_bitmap[i + curr_total_slot].num_dl_symbols = n_dl_symbols;
-      tdd_config->tdd_slot_bitmap[i + curr_total_slot].num_ul_symbols = n_ul_symbols;
+      period_cfg->tdd_slot_bitmap[i + curr_total_slot].num_dl_symbols = n_dl_symbols;
+      period_cfg->tdd_slot_bitmap[i + curr_total_slot].num_ul_symbols = n_ul_symbols;
     } else if (n_ul_slot)
-      tdd_config->tdd_slot_bitmap[i + curr_total_slot].slot_type = TDD_NR_UPLINK_SLOT;
+      period_cfg->tdd_slot_bitmap[i + curr_total_slot].slot_type = TDD_NR_UPLINK_SLOT;
   }
 
   LOG_I(NR_MAC, "Setting TDD configuration total slot %d and curr_slot %d\n", total_slot, curr_total_slot);
@@ -319,8 +320,9 @@ static int get_tdd_period(NR_TDD_UL_DL_ConfigCommon_t *tdd, nfapi_nr_config_requ
   float tdd_ms_period_ext[] = {3.0, 4.0};
   float pattern1_ms = 0.0, pattern2_ms = 0.0;
   int8_t total_slot_pattern1 = 0;
-  tdd_config->num_dl_slots = 0;
-  tdd_config->num_ul_slots = 0;
+  tdd_period_config_t *period_cfg = &tdd_config->period_cfg;
+  period_cfg->num_dl_slots = 0;
+  period_cfg->num_ul_slots = 0;
   NR_TDD_UL_DL_Pattern_t pattern = tdd->pattern1;
 
   if (pattern.ext1 == NULL) {
@@ -377,98 +379,6 @@ static int get_tdd_period(NR_TDD_UL_DL_ConfigCommon_t *tdd, nfapi_nr_config_requ
 
   LOG_I(NR_MAC, "Setting TDD configuration period sum of both patterns  %d\n", cfg->tdd_table.tdd_period.value);
   return num_of_patterns;
-}
-
-static int set_tdd_config_nr_new(nfapi_nr_config_request_scf_t *cfg, int mu, tdd_config_t *tdd_config)
-{
-  int slot_number = 0;
-  tdd_config->tdd_numb_slots_frame = nr_slots_per_frame[mu];
-  int nb_slots_to_set = TDD_CONFIG_NB_FRAMES * tdd_config->tdd_numb_slots_frame;
-
-  tdd_config->tdd_numb_period_frame = get_nb_periods_per_frame(cfg->tdd_table.tdd_period.value);
-  int slot_index = 0;
-  tdd_config->tdd_numb_slots_period = ((1 << mu) * NR_NUMBER_OF_SUBFRAMES_PER_FRAME) / tdd_config->tdd_numb_period_frame;
-
-  int nb_slots_per_period = tdd_config->tdd_numb_slots_period;
-
-  cfg->tdd_table.max_tdd_periodicity_list = calloc(nb_slots_to_set, sizeof(nfapi_nr_max_tdd_periodicity_t));
-
-  for (int memory_alloc = 0; memory_alloc < nb_slots_to_set; memory_alloc++) {
-    nfapi_nr_max_tdd_periodicity_t *max_tdd_periodicity_list = &cfg->tdd_table.max_tdd_periodicity_list[memory_alloc];
-    max_tdd_periodicity_list->max_num_of_symbol_per_slot_list =
-        calloc(NR_NUMBER_OF_SYMBOLS_PER_SLOT, sizeof(nfapi_nr_max_num_of_symbol_per_slot_t));
-  }
-
-  while (slot_number != nb_slots_to_set) {
-    slot_index = slot_number % nb_slots_per_period;
-    if (tdd_config->tdd_slot_bitmap[slot_index].slot_type == TDD_NR_DOWNLINK_SLOT) {
-      for (int number_of_symbol = 0; number_of_symbol < NR_NUMBER_OF_SYMBOLS_PER_SLOT; number_of_symbol++) {
-        cfg->tdd_table.max_tdd_periodicity_list[slot_number].max_num_of_symbol_per_slot_list[number_of_symbol].slot_config.value =
-            0;
-        LOG_I(NR_MAC,
-              "Setting TDD configuration slot_number %d is DL_Slot %d slot_index %d DL_symbol \n",
-              slot_number,
-              slot_index,
-              number_of_symbol);
-      }
-      LOG_I(NR_MAC, "Setting TDD configuration slot_number %d is DL_Slot %d slot_index \n", slot_number, slot_index);
-      slot_number++;
-    }
-
-    if (tdd_config->tdd_slot_bitmap[slot_index].slot_type == TDD_NR_MIXED_SLOT) {
-      for (int number_of_symbol = 0; number_of_symbol < tdd_config->tdd_slot_bitmap[slot_index].num_dl_symbols;
-           number_of_symbol++) {
-        cfg->tdd_table.max_tdd_periodicity_list[slot_number].max_num_of_symbol_per_slot_list[number_of_symbol].slot_config.value =
-            0;
-        LOG_I(NR_MAC,
-              "Setting TDD configuration slot_number %d is Mixed Slot %d slot_index %d dl_symbol \n",
-              slot_number,
-              slot_index,
-              number_of_symbol);
-      }
-
-      for (int number_of_symbol = tdd_config->tdd_slot_bitmap[slot_index].num_dl_symbols;
-           number_of_symbol < NR_NUMBER_OF_SYMBOLS_PER_SLOT - tdd_config->tdd_slot_bitmap[slot_index].num_ul_symbols;
-           number_of_symbol++) {
-        cfg->tdd_table.max_tdd_periodicity_list[slot_number].max_num_of_symbol_per_slot_list[number_of_symbol].slot_config.value =
-            2;
-        LOG_I(NR_MAC,
-              "Setting TDD configuration slot_number %d is Mixed Slot %d slot_index %d gap_symbol \n",
-              slot_number,
-              slot_index,
-              number_of_symbol);
-      }
-
-      for (int number_of_symbol = NR_NUMBER_OF_SYMBOLS_PER_SLOT - tdd_config->tdd_slot_bitmap[slot_index].num_ul_symbols;
-           number_of_symbol < NR_NUMBER_OF_SYMBOLS_PER_SLOT;
-           number_of_symbol++) {
-        cfg->tdd_table.max_tdd_periodicity_list[slot_number].max_num_of_symbol_per_slot_list[number_of_symbol].slot_config.value =
-            1;
-        LOG_I(NR_MAC,
-              "Setting TDD configuration slot_number %d is Mixed Slot %d slot_index %d ul_symbol \n",
-              slot_number,
-              slot_index,
-              number_of_symbol);
-      }
-      LOG_I(NR_MAC, "Setting TDD configuration slot_number %d is MIXED %d slot_index \n", slot_number, slot_index);
-      slot_number++;
-    }
-
-    if (tdd_config->tdd_slot_bitmap[slot_index].slot_type == TDD_NR_UPLINK_SLOT) {
-      for (int number_of_symbol = 0; number_of_symbol < NR_NUMBER_OF_SYMBOLS_PER_SLOT; number_of_symbol++) {
-        cfg->tdd_table.max_tdd_periodicity_list[slot_number].max_num_of_symbol_per_slot_list[number_of_symbol].slot_config.value =
-            1;
-        LOG_I(NR_MAC,
-              "Setting TDD configuration slot_number %d is UL Slot %d slot_index %d ul_symbol \n",
-              slot_number,
-              slot_index,
-              number_of_symbol);
-      }
-      LOG_I(NR_MAC, "Setting TDD configuration slot_number %d is UL_Slot %d slot_index \n", slot_number, slot_index);
-      slot_number++;
-    }
-  }
-  return (tdd_config->tdd_numb_period_frame);
 }
 
 static void config_common(gNB_MAC_INST *nrmac, nr_pdsch_AntennaPorts_t pdsch_AntennaPorts, int pusch_AntennaPorts, NR_ServingCellConfigCommon_t *scc)
@@ -778,8 +688,8 @@ static void config_common(gNB_MAC_INST *nrmac, nr_pdsch_AntennaPorts_t pdsch_Ant
           cfg->tdd_table.tdd_period.value,
           num_tdd_patterns);
 
-    periods_per_frame =
-        set_tdd_config_nr_new(cfg, frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing, &nrmac->tdd_config);
+    uint8_t mu = frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing;
+    periods_per_frame = set_tdd_config_nr(cfg, mu, &nrmac->tdd_config, NULL);
 
     AssertFatal(periods_per_frame > 0, "TDD configuration cannot be configured\n");
   } else {
