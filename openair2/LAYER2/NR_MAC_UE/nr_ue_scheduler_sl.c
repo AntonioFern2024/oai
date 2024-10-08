@@ -71,6 +71,10 @@ static void sl_determine_slot_bitmap(sl_nr_ue_mac_params_t *sl_mac, int ue_id)
   }
   
   // Free existing memory for future TTIs to avoid memory leaks
+  free(sl_mac->future_ttis);
+  
+
+  // Free existing memory for future TTIs to avoid memory leaks
   if (sl_mac->future_ttis != NULL) {
     free(sl_mac->future_ttis);
   }
