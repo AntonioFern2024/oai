@@ -22,7 +22,11 @@
 #include "mac_defs.h"
 #include "mac_proto.h"
 
-static uint16_t sl_adjust_ssb_indices(sl_ssb_timealloc_t *ssb_timealloc, uint32_t slot_in_16frames, uint16_t *ssb_slot_ptr)
+// Define constants to avoid magic numbers
+#define SUBFRAMES_PER_FRAME 10
+#define NR_FRAME_CYCLE_1024 1024
+
+static uint16_t sl_adjust_ssb_indices(const sl_ssb_timealloc_t *ssb_timealloc, uint32_t slot_in_16frames, uint16_t *ssb_slot_ptr)
 {
   uint16_t ssb_slot = ssb_timealloc->sl_TimeOffsetSSB;
   uint16_t numssb = 0;
@@ -46,16 +50,8 @@ static uint16_t sl_adjust_ssb_indices(sl_ssb_timealloc_t *ssb_timealloc, uint32_
   return numssb;
 }
 
-static uint8_t sl_get_elapsed_slots(uint32_t slot, uint32_t sl_slot_bitmap)
-{
-  uint8_t elapsed_slots = 0;
-
-  for (int i = 0; i < slot; i++) {
-    if (sl_slot_bitmap & (1 << i))
-      elapsed_slots++;
-  }
-
-  return elapsed_slots;
+static uint8_t sl_get_elapsed_slots(uint32_t slot, uint32_t sl_slot_bitmap){
+  return __builtin_popcount(sl_slot_bitmap & ((1 << slot) - 1));
 }
 
 static void sl_determine_slot_bitmap(sl_nr_ue_mac_params_t *sl_mac, int ue_id)
@@ -64,7 +60,7 @@ static void sl_determine_slot_bitmap(sl_nr_ue_mac_params_t *sl_mac, int ue_id)
   sl_nr_phy_config_request_t *sl_cfg = &sl_mac->sl_phy_config.sl_config_req;
 
   uint8_t sl_scs = sl_cfg->sl_bwp_config.sl_scs;
-  uint8_t num_slots_per_frame = 10 * (1 << sl_scs);
+  uint8_t num_slots_per_frame = slots_per_subframe * SUBFRAMES_PER_FRAME;
   uint8_t slot_type = 0;
   for (int i = 0; i < num_slots_per_frame; i++) {
     slot_type = sl_nr_ue_slot_select(sl_cfg, i, TDD);
@@ -72,6 +68,15 @@ static void sl_determine_slot_bitmap(sl_nr_ue_mac_params_t *sl_mac, int ue_id)
       sl_mac->N_SL_SLOTS_perframe += 1;
       sl_mac->sl_slot_bitmap |= (1 << i);
     }
+  }
+  
+  // Free existing memory for future TTIs to avoid memory leaks
+  free(sl_mac->future_ttis);
+  
+
+  // Free existing memory for future TTIs to avoid memory leaks
+  if (sl_mac->future_ttis != NULL) {
+    free(sl_mac->future_ttis);
   }
 
   sl_mac->future_ttis = calloc(num_slots_per_frame, sizeof(sl_stored_tti_req_t));
@@ -95,13 +100,13 @@ static uint32_t sl_determine_num_sidelink_slots(sl_nr_ue_mac_params_t *sl_mac, i
   *N_SSB_16frames = 0;
 
   if (sl_mac->rx_sl_bch.status) {
-    sl_ssb_timealloc_t *ssb_timealloc = &sl_mac->rx_sl_bch.ssb_time_alloc;
+    const sl_ssb_timealloc_t *ssb_timealloc = &sl_mac->rx_sl_bch.ssb_time_alloc;
     *N_SSB_16frames += ssb_timealloc->sl_NumSSB_WithinPeriod;
     LOG_D(NR_MAC, "RX SSB Slots:%d\n", *N_SSB_16frames);
   }
 
   if (sl_mac->tx_sl_bch.status) {
-    sl_ssb_timealloc_t *ssb_timealloc = &sl_mac->tx_sl_bch.ssb_time_alloc;
+    const sl_ssb_timealloc_t *ssb_timealloc = &sl_mac->tx_sl_bch.ssb_time_alloc;
     *N_SSB_16frames += ssb_timealloc->sl_NumSSB_WithinPeriod;
     LOG_D(NR_MAC, "TX SSB Slots:%d\n", *N_SSB_16frames);
   }
