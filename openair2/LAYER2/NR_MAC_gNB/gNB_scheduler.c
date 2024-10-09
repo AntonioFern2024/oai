@@ -168,6 +168,28 @@ bool is_xlsch_in_slot(uint64_t bitmap, sub_frame_t slot) {
   return (bitmap >> (slot % 64)) & 0x01;
 }
 
+bool is_ul_slot(sub_frame_t slot, const tdd_config_t *tdd_cfg)
+{
+  const tdd_period_config_t *frame_cfg = &tdd_cfg->period_cfg;
+  int slot_index = slot % tdd_cfg->tdd_numb_slots_period;
+  return ((frame_cfg->tdd_slot_bitmap[slot_index].slot_type == TDD_NR_MIXED_SLOT)
+  || (frame_cfg->tdd_slot_bitmap[slot_index].slot_type == TDD_NR_UPLINK_SLOT));
+}
+bool is_dl_slot(sub_frame_t slot, const tdd_config_t *tdd_cfg)
+{
+  const tdd_period_config_t *frame_cfg = &tdd_cfg->period_cfg;
+  int slot_index = slot % tdd_cfg->tdd_numb_slots_period;
+  return ((frame_cfg->tdd_slot_bitmap[slot_index].slot_type == TDD_NR_MIXED_SLOT)
+         || (frame_cfg->tdd_slot_bitmap[slot_index].slot_type == TDD_NR_DOWNLINK_SLOT));
+}
+
+bool is_mixed_slot(sub_frame_t slot, const tdd_config_t *tdd_cfg)
+{
+  const tdd_period_config_t *frame_cfg = &tdd_cfg->period_cfg;
+  int slot_index = slot % tdd_cfg->tdd_numb_slots_period;
+  return ((frame_cfg->tdd_slot_bitmap[slot_index].slot_type == TDD_NR_MIXED_SLOT));
+}
+
 /* the structure nfapi_nr_ul_tti_request_t is very big, let's copy only what is necessary */
 static void copy_ul_tti_req(nfapi_nr_ul_tti_request_t *to, nfapi_nr_ul_tti_request_t *from)
 {

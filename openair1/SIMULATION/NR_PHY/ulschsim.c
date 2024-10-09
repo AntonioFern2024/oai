@@ -431,7 +431,12 @@ int main(int argc, char **argv)
 
   nr_phy_config_request_sim(gNB, N_RB_UL, N_RB_UL, mu, Nid_cell, SSB_positions);
   gNB->gNB_config.tdd_table.tdd_period.value = 6;
-  set_tdd_config_nr(&gNB->gNB_config, mu, 7, 6, 2, 4);
+  tdd_period_config_t period_cfg = {.num_dl_slots = 7,
+                                    .num_ul_slots = 2,
+                                    .tdd_slot_bitmap[0].slot_type = TDD_NR_MIXED_SLOT,
+                                    .tdd_slot_bitmap[0].num_dl_symbols = 6,
+                                    .tdd_slot_bitmap[0].num_ul_symbols = 4};
+  set_tdd_config_nr(&gNB->gNB_config, mu, NULL, &period_cfg);
   phy_init_nr_gNB(gNB);
 
   //configure UE
