@@ -446,3 +446,105 @@ Finally the number of TX physical antenna in the RU part of the configuration fi
 It is possible to limit the number supported DL MIMO layers via RRC configuration, e.g. to a value lower than the number of logical antenna ports configured, by using the configuration file parameter `maxMIMO_layers`.
 
 [Example of configuration file with parameters for 2-layer MIMO](https://gitlab.eurecom.fr/oai/openairinterface5g/-/blob/develop/targets/PROJECTS/GENERIC-NR-5GC/CONF/gnb.sa.band77.fr1.273PRB.2x2.usrpn300.conf)
+
+# 5G gNB Frequency Configuration
+
+Configuring the frequency settings for a 5G gNB involves specifying multiple parameters in the gNB configuration file. This guide outlines the necessary parameters and provides step-by-step instructions for configuration, focusing on TDD bands above 3000 MHz.
+
+## Configuration parameters
+
+To configure the gNB with the required frequency and bandwidth, modify the following parameters in the configuration file:
+
+### `gNBs` Section
+
+* **`absoluteFrequencySSB`**
+  * *Description:* ARFCN value. Steps to compute this value are provided below.
+* **`dl_absoluteFrequencyPointA`**
+  * *Description:* ARFCN value for Point A, to be determined with an online tool.
+* **`dl_frequencyBand`**
+  * *Description:* Required downlink frequency band.
+* **`dl_subcarrierSpacing`**
+  * *Description:* Downlink subcarrier spacing.
+  * *Allowed values:* `0` = 15 kHz, `1` = 30 kHz, `2` = 60 kHz, `3` = 120 kHz
+* **`dl_carrierBandwidth`**
+  * *Description:* Number of PRBs for downlink.
+* **`initialDLBWPlocationAndBandwidth`**
+  * *Description:* Initial BWP location and bandwidth, to be determined using an online tool.
+* **`initialDLBWPsubcarrierSpacing`**
+  * *Description:* Initial downlink BWP subcarrier spacing.
+  * *Allowed values:* `0` = 15 kHz, `1` = 30 kHz, `2` = 60 kHz, `3` = 120 kHz
+* **`ul_frequencyBand`**
+  * *Description:* Required uplink frequency band.
+* **`ul_carrierBandwidth`**
+  * *Description:* Number of PRBs for uplink.
+* **`initialULBWPlocationAndBandwidth`**
+  * *Description:* Initial uplink BWP location and bandwidth, to be determined using an online tool.
+* **`initialULBWPsubcarrierSpacing`**
+  * *Description:* Initial uplink BWP subcarrier spacing.
+  * *Allowed values:* `0` = 15 kHz, `1` = 30 kHz, `2` = 60 kHz, `3` = 120 kHz
+* **`subcarrierSpacing`**
+  * *Description:* General subcarrier spacing for both DL and UL.
+  * *Allowed values:* `0` = 15 kHz, `1` = 30 kHz, `2` = 60 kHz, `3` = 120 kHz
+
+### `RUs` Section
+
+* **`bands`**
+  * *Description:* Required frequency band for RU(s).
+
+## Determining the ARFCN value for `absoluteFrequencySSB`
+
+Follow these steps to compute the ARFCN value for `absoluteFrequencySSB` based on the 5G NR synchronization raster. Use the formula from **TS 138.104, Section 5.4.3.1 Synchronization Raster**:
+
+1. **Identify the closest SSB frequency in the synchronization raster**
+
+     $$
+     \frac{\text{Required Frequency} - 3000}{1.44}
+     $$
+
+* **Example Calculation:** For a required center frequency of 3500 MHz:
+
+     $$
+     \frac{3500 - 3000}{1.44} \approx 347.22
+     $$
+
+2. **Round the result to the nearest whole number**
+* Rounded result: **347**
+
+3. **Calculate the SSB frequency using the rounded value**
+
+     $$
+     3000 + (347 \times 1.44) = 3499.68 \text{ MHz}
+     $$
+
+4. **Convert the calculated frequency to ARFCN**
+* Use an online ARFCN calculator to convert the frequency (in MHz) to the corresponding ARFCN value.
+  * Recommended tool: [5G NR ARFCN Calculator](https://5g-tools.com/5g-nr-arfcn-calculator/)
+
+* **Example Conversion:**
+  * Frequency: 3499.68 MHz
+  * Corresponding ARFCN: 633312
+
+5. **Set `absoluteFrequencySSB` in the gNB configuration file**
+
+## Determining the ARFCN value for `dl_absoluteFrequencyPointA` and BWP-related parameters
+
+Follow these steps to find the ARFCN values for `dl_absoluteFrequencyPointA`, `initialDLBWPlocationAndBandwidth`, and `initialULBWPlocationAndBandwidth`:
+
+1. **Use the NR Reference Point A Tool**
+* Recommended tool: [NR Reference Point A Tool](https://www.sqimway.com/nr_refA.php)
+
+2. **Input parameters**
+* Enter the frequency band, `absoluteFrequencySSB` (NR Arfcn scan parameter), subcarrier spacing (SCS parameter), and bandwidth into the tool.
+
+3. **Obtain the required values**
+* Example conguration for following input parameters
+  * Freuqncy band = n78
+  * NR Arfcn scan (`absoluteFrequencySSB`) = 633312
+  * SCS = 30 kHz
+  * Bandwidth = 100 MHz
+* The tool provides the following values:
+  * Point A Arfcnc (`dl_absoluteFrequencyPointA`) = 630036
+  * locationAndBandwidth full (`initialDLBWPlocationAndBandwidth`) = 1099
+  * locationAndBandwidth full (`initialULBWPlocationAndBandwidth`) = 1099
+
+4. **Set `dl_absoluteFrequencyPointA`, `initialDLBWPlocationAndBandwidth`, and `initialULBWPlocationAndBandwidth` in the gNB configuration file**
