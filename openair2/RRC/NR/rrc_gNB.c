@@ -1191,19 +1191,8 @@ static void rrc_handle_RRCReestablishmentRequest(gNB_RRC_INST *rrc,
 
   nr_ho_source_cu_t *source_ctx = UE->ho_context ? UE->ho_context->source : NULL;
   DevAssert(!source_ctx || source_ctx->du->setup_req->num_cells_available == 1);
-  nr_ho_target_cu_t *target_ctx = UE->ho_context ? UE->ho_context->target : NULL;
-  DevAssert(!target_ctx || target_ctx->du->setup_req->num_cells_available == 1);
-
   bool ho_reestab_on_source = source_ctx && previous_cell_info->nr_cellid == source_ctx->du->setup_req->cell[0].info.nr_cellid;
-  bool ho_reestab_on_target = target_ctx && previous_cell_info->nr_cellid == target_ctx->du->setup_req->cell[0].info.nr_cellid;
 
-  AssertFatal(!UE->ho_context || ho_reestab_on_source || ho_reestab_on_target, "impossible/buggy\n");
-
-  LOG_I(NR_RRC,
-        "found corresponding UE ID %d reestab_on_source %d reestab_on_target %d\n",
-        UE->rrc_ue_id,
-        ho_reestab_on_source,
-        ho_reestab_on_target);
   if (ho_reestab_on_source) {
     /* the UE came back on the source DU while doing handover, release at
      * target DU and and update the association to the initial DU one */
@@ -1221,17 +1210,6 @@ static void rrc_handle_RRCReestablishmentRequest(gNB_RRC_INST *rrc,
     ue_data.du_assoc_id = source_ctx->du->assoc_id;
     cu_remove_f1_ue_data(UE->rrc_ue_id);
     cu_add_f1_ue_data(UE->rrc_ue_id, &ue_data);
-    nr_rrc_finalize_ho(UE);
-  } else if (ho_reestab_on_target) {
-    /* TODO can this happen? this would mean the UE completed reconfiguration.
-     * Can we have a reestablishment when the current reconfiguration failed?
-     * The reconfiguration we can send again is the original handover, so we
-     * trigger handover again */
-
-    /* the UE came back on the target DU while doing handover, release at the
-     * source and consider the handover completed */
-    LOG_A(NR_RRC, "handover for UE %d/RNTI %04x complete!\n", UE->rrc_ue_id, UE->rnti);
-    target_ctx->ho_success(rrc, UE);
     nr_rrc_finalize_ho(UE);
   } else if (physCellId != cell_info->nr_pci) {
     /* UE was moving from previous cell so quickly that RRCReestablishment for previous cell was received in this cell */
