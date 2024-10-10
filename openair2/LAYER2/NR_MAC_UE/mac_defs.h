@@ -506,6 +506,17 @@ typedef enum {
   ON_PUSCH
 } CSI_mapping_t;
 
+typedef struct ntn_timing_advance_components {
+// N_common_ta_adj represents common propagation delay received in SIB19 (ms)
+double N_common_ta_adj;
+// N_UE_TA_adj calculated propagation delay from UE and SAT (ms)
+double N_UE_TA_adj;
+// drift rate of common ta in µs/s
+double ntn_ta_commondrift;
+// cell scheduling offset expressed in terms of 15kHz SCS
+long cell_specific_k_offset;
+} ntn_timing_advance_componets_t;
+
 /*!\brief Top level UE MAC structure */
 typedef struct NR_UE_MAC_INST_s {
   module_id_t ue_id;
@@ -576,6 +587,8 @@ typedef struct NR_UE_MAC_INST_s {
   int p_Max_alt;
   int n_ta_offset; // -1 not present, otherwise value to be applied
 
+  ntn_timing_advance_componets_t ntn_ta;
+
   long pdsch_HARQ_ACK_Codebook;
 
   NR_Type0_PDCCH_CSS_config_t type0_PDCCH_CSS_config;
@@ -611,6 +624,10 @@ typedef struct NR_UE_MAC_INST_s {
   bool pusch_power_control_initialized;
   int delta_msg2;
 } NR_UE_MAC_INST_t;
+
+int get_ntn_ue_k_offset(const NR_UE_MAC_INST_t *mac, int scs);
+double get_complete_time_advance_ms(const NR_UE_MAC_INST_t *mac);
+long get_duration_rx_to_tx(const NR_UE_MAC_INST_t *mac);
 
 /*@}*/
 #endif /*__LAYER2_MAC_DEFS_H__ */
