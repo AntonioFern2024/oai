@@ -246,6 +246,11 @@ void nr_ue_ssb_rsrp_measurements(PHY_VARS_NR_UE *ue,
       openair0_config_t config;
       config.rx_power_reference = adjusted_rx_power_reference;
       ue->rfdevice.set_rx_power_reference_func(&ue->rfdevice, &config);
+      LOG_I(PHY,
+            "Adjust RX power reference based on SSB, new rx_power_reference = %f, old rx_power_reference = %f, average_amplitude = %d\n",
+            adjusted_rx_power_reference,
+            rx_power_reference,
+            average_amplitude);
     }
   } else {
     ue->measurements.ssb_rsrp_dBm[ssb_index] = 10 * log10(rsrp) + 30 - SQ15_SQUARED_NORM_FACTOR_DB

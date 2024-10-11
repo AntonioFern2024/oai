@@ -1235,8 +1235,8 @@ void nr_ue_prach_procedures(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc)
     int prach_sequence_length = ue->nrUE_config.prach_config.prach_sequence_length;
     int num_prach_sc = (prach_sequence_length == 0) ? 839 : 139;
     if (get_softmodem_params()->calibrated_radio) {
-      int tx_power_reference = ue->rfdevice.get_tx_power_reference_func(&ue->rfdevice);
-      int tx_power_requested_per_subcarrier = prach_pdu->prach_tx_power - 10 * log10(num_prach_sc);;
+      float tx_power_reference = ue->rfdevice.get_tx_power_reference_func(&ue->rfdevice);
+      float tx_power_requested_per_subcarrier = prach_pdu->prach_tx_power - 10 * log10(num_prach_sc);;
       amplitude = calculate_tx_amplitude(tx_power_reference, tx_power_requested_per_subcarrier, 30);
 
       float adjusted_tx_power_reference = adjusted_power_reference(tx_power_reference, amplitude);
@@ -1244,6 +1244,11 @@ void nr_ue_prach_procedures(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc)
         openair0_config_t config;
         config.tx_power_reference = adjusted_tx_power_reference;
         ue->rfdevice.set_tx_power_reference_func(&ue->rfdevice, &config);
+        LOG_I(PHY,
+              "Adjust TX power reference from PRACH, new tx_power_reference = %f, old tx_power_reference = %f, amplitude = %d\n",
+              adjusted_tx_power_reference,
+              tx_power_reference,
+              amplitude);
       }
     }
 

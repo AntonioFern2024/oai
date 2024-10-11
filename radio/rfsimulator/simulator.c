@@ -1110,7 +1110,6 @@ static int rfsimulator_get_tx_power_reference(openair0_device *device) {
 static int rfsimulator_set_tx_power_reference(openair0_device *device, openair0_config_t *openair0_cfg) {
   rfsimulator_state_t *s = device->priv;
   s->tx_power_reference = (int)openair0_cfg->tx_power_reference;
-  LOG_I(HW, "TX power reference = %d\n", s->tx_power_reference);
   return 0;
 }
 

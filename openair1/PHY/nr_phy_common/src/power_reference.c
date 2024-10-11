@@ -23,31 +23,31 @@
 #include <math.h>
 #include "power_reference.h"
 
-float calculate_average_rx_power(float rms, float rx_power_reference)
+float calculate_average_rx_power(float rms_squared, float rx_power_reference)
 {
   const int16_t fullscale = INT16_MAX;
-  const float rms_fullscale = 0.707 * fullscale * fullscale;
-  return rx_power_reference + 10 * log10(rms / rms_fullscale);
+  const float rms_squared_fullscale = 0.707 * fullscale * fullscale;
+  return rx_power_reference + 10 * log10(rms_squared / rms_squared_fullscale);
 }
 
 int16_t calculate_tx_amplitude(float tx_power_reference, float requested_power_per_subcarrier, float target_amp_backoff_db)
 {
   const int16_t fullscale = INT16_MAX;
   if (tx_power_reference < requested_power_per_subcarrier) {
-    // In case current tx_power setting is too small, clip AMP to FULLSCALE
+    // In case current tx_power setting is too small, set amplitude to FULLSCALE
     return fullscale;
   } else {
     int16_t amp_backoff_db = tx_power_reference - requested_power_per_subcarrier;
-    return (int16_t)(fullscale / pow(10.0, amp_backoff_db / 20.0));
+    return (int16_t)fmax((fullscale / pow(10.0, amp_backoff_db / 20.0)), 128);
   }
 }
 
 float adjusted_power_reference(float power_reference, int16_t amplitude)
 {
   if (amplitude < TARGET_MINIMUM_AMPLITUDE) {
-    return power_reference - 3;
+    return power_reference - 6;
   } else if (amplitude > TARGET_MAXIMUM_AMPLITUDE) {
-    return power_reference + 3;
+    return power_reference + 6;
   }
   return power_reference;
 }

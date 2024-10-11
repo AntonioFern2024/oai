@@ -621,8 +621,8 @@ void nr_ue_ulsch_procedures(PHY_VARS_NR_UE *UE,
 
   int16_t amplitude = AMP;
   if (get_softmodem_params()->calibrated_radio) {
-    int tx_power_reference = UE->rfdevice.get_tx_power_reference_func(&UE->rfdevice);
-    int tx_power_requested_per_subcarrier = pusch_pdu->tx_power - 10 * log10(nb_rb * NR_NB_SC_PER_RB);
+    float tx_power_reference = UE->rfdevice.get_tx_power_reference_func(&UE->rfdevice);
+    float tx_power_requested_per_subcarrier = pusch_pdu->tx_power - 10 * log10(nb_rb * NR_NB_SC_PER_RB);
     amplitude = calculate_tx_amplitude(tx_power_reference, tx_power_requested_per_subcarrier, 30);
 
     float adjusted_tx_power_reference = adjusted_power_reference(tx_power_reference, amplitude);
@@ -630,6 +630,11 @@ void nr_ue_ulsch_procedures(PHY_VARS_NR_UE *UE,
       openair0_config_t config;
       config.tx_power_reference = adjusted_tx_power_reference;
       UE->rfdevice.set_tx_power_reference_func(&UE->rfdevice, &config);
+      LOG_I(PHY,
+            "Adjust TX power reference from PUSCH, new tx_power_reference = %f, old tx_power_reference = %f, amplitude = %d\n",
+            adjusted_tx_power_reference,
+            tx_power_reference,
+            amplitude);
     }
   }
   nr_ue_layer_mapping(d_mod, Nl, sz, amplitude, ulsch_mod);
