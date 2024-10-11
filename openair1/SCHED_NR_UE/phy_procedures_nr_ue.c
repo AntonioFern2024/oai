@@ -54,6 +54,7 @@
 #include "SCHED_NR_UE/pucch_uci_ue_nr.h"
 #include <openair1/PHY/TOOLS/phy_scope_interface.h>
 #include "nfapi/open-nFAPI/nfapi/public_inc/nfapi_nr_interface.h"
+#include "power_reference.h"
 
 //#define DEBUG_PHY_PROC
 //#define NR_PDCCH_SCHED_DEBUG
@@ -1230,7 +1231,28 @@ void nr_ue_prach_procedures(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc)
           prach_pdu->ra_PreambleIndex,
           ue->tx_power_dBm[nr_slot_tx]);
 
-    ue->prach_vars[gNB_id]->amp = AMP;
+    uint16_t amplitude = AMP;
+    int prach_sequence_length = ue->nrUE_config.prach_config.prach_sequence_length;
+    int num_prach_sc = (prach_sequence_length == 0) ? 839 : 139;
+    if (get_softmodem_params()->calibrated_radio) {
+      float tx_power_reference = ue->rfdevice.get_tx_power_reference_func(&ue->rfdevice);
+      float tx_power_requested_per_subcarrier = prach_pdu->prach_tx_power - 10 * log10(num_prach_sc);;
+      amplitude = calculate_tx_amplitude(tx_power_reference, tx_power_requested_per_subcarrier, 30);
+
+      float adjusted_tx_power_reference = adjusted_power_reference(tx_power_reference, amplitude);
+      if (adjusted_tx_power_reference != tx_power_reference) {
+        openair0_config_t config;
+        config.tx_power_reference = adjusted_tx_power_reference;
+        ue->rfdevice.set_tx_power_reference_func(&ue->rfdevice, &config);
+        LOG_I(PHY,
+              "Adjust TX power reference from PRACH, new tx_power_reference = %f, old tx_power_reference = %f, amplitude = %d\n",
+              adjusted_tx_power_reference,
+              tx_power_reference,
+              amplitude);
+      }
+    }
+
+    ue->prach_vars[gNB_id]->amp = amplitude;
 
     VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_GENERATE_PRACH, VCD_FUNCTION_IN);
 
