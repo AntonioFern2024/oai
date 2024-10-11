@@ -37,6 +37,7 @@
 #include "PHY/phy_extern_nr_ue.h"
 #include "common/utils/LOG/log.h"
 #include "PHY/sse_intrin.h"
+#include "power_reference.h"
 
 //#define k1 1000
 #define k1 ((long long int) 1000)
@@ -236,9 +237,21 @@ void nr_ue_ssb_rsrp_measurements(PHY_VARS_NR_UE *ue,
 
   openair0_config_t *cfg0 = &openair0_cfg[0];
 
-  ue->measurements.ssb_rsrp_dBm[ssb_index] = 10 * log10(rsrp) + 30 - SQ15_SQUARED_NORM_FACTOR_DB
-                                             - ((int)cfg0->rx_gain[0] - (int)cfg0->rx_gain_offset[0])
-                                             - dB_fixed(fp->ofdm_symbol_size);
+  if (get_softmodem_params()->calibrated_radio) {
+    float rx_power_reference = ue->rfdevice.get_rx_power_reference_func(&ue->rfdevice);
+    ue->measurements.ssb_rsrp_dBm[ssb_index] = (int)calculate_average_rx_power(rsrp, rx_power_reference);
+    float average_amplitude = sqrt(rsrp / 2);
+    float adjusted_rx_power_reference = adjusted_power_reference(rx_power_reference, average_amplitude);
+    if (adjusted_rx_power_reference != rx_power_reference) {
+      openair0_config_t config;
+      config.rx_power_reference = adjusted_rx_power_reference;
+      ue->rfdevice.set_rx_power_reference_func(&ue->rfdevice, &config);
+    }
+  } else {
+    ue->measurements.ssb_rsrp_dBm[ssb_index] = 10 * log10(rsrp) + 30 - SQ15_SQUARED_NORM_FACTOR_DB
+                                              - ((int)cfg0->rx_gain[0] - (int)cfg0->rx_gain_offset[0])
+                                              - dB_fixed(fp->ofdm_symbol_size);
+  }
 
   LOG_D(PHY,
         "[UE %d] ssb %d SS-RSRP: %d dBm/RE (%d dB/RE)\n",

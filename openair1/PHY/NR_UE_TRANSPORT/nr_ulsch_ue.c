@@ -48,6 +48,7 @@
 #include "executables/softmodem-common.h"
 #include "PHY/NR_REFSIG/ul_ref_seq_nr.h"
 #include <openair2/UTIL/OPT/opt.h>
+#include "power_reference.h"
 
 //#define DEBUG_PUSCH_MAPPING
 //#define DEBUG_MAC_PDU
@@ -618,7 +619,20 @@ void nr_ue_ulsch_procedures(PHY_VARS_NR_UE *UE,
   const int sz = available_bits / mod_order / Nl;
   c16_t ulsch_mod[Nl][sz];
 
-  nr_ue_layer_mapping(d_mod, Nl, sz, AMP, ulsch_mod);
+  int16_t amplitude = AMP;
+  if (get_softmodem_params()->calibrated_radio) {
+    int tx_power_reference = UE->rfdevice.get_tx_power_reference_func(&UE->rfdevice);
+    int tx_power_requested_per_subcarrier = pusch_pdu->tx_power - 10 * log10(nb_rb * NR_NB_SC_PER_RB);
+    amplitude = calculate_tx_amplitude(tx_power_reference, tx_power_requested_per_subcarrier, 30);
+
+    float adjusted_tx_power_reference = adjusted_power_reference(tx_power_reference, amplitude);
+    if (adjusted_tx_power_reference != tx_power_reference) {
+      openair0_config_t config;
+      config.tx_power_reference = adjusted_tx_power_reference;
+      UE->rfdevice.set_tx_power_reference_func(&UE->rfdevice, &config);
+    }
+  }
+  nr_ue_layer_mapping(d_mod, Nl, sz, amplitude, ulsch_mod);
 
   ///////////
   ////////////////////////////////////////////////////////////////////////
