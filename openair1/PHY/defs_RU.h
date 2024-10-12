@@ -424,6 +424,11 @@ typedef enum {
   WAIT_RESYNCH     = 3
 } rru_cmd_t;
 
+typedef struct {
+  bool process_prach_flag;
+  int prach_id;
+  int prach_start_slot;
+} ru_prach_data_t;
 
 typedef struct RU_t_s {
   /// ThreadPool for RU	
@@ -614,6 +619,8 @@ typedef struct RU_t_s {
   RU_PRACH_list_t prach_list[NUMBER_OF_NR_RU_PRACH_MAX];
   /// mutex for prach_list access
   pthread_mutex_t prach_list_mutex;
+  /// struct to hold prach info for formats spanning beyond a slot
+  ru_prach_data_t *prach_data;
   /// received frequency-domain signal for PRACH (IF4p5 RRU) 
   int16_t **prach_rxsigF[NUMBER_OF_NR_RU_PRACH_OCCASIONS_MAX];
   /// received frequency-domain signal for PRACH BR (IF4p5 RRU)

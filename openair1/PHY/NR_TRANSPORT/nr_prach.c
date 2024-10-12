@@ -149,15 +149,15 @@ void free_nr_ru_prach_entry(RU_t *ru,
 
 }
 
-
 void rx_nr_prach_ru(RU_t *ru,
-		    int prachFormat,
-		    int numRA,
-		    int prachStartSymbol,
-		    int prachOccasion,
-		    int frame,
-		    int slot) {
-
+                    int prachFormat,
+                    int numRA,
+                    int prachStartSymbol,
+                    int prachStartSlot,
+                    int prachOccasion,
+                    int frame,
+                    int slot)
+{
   AssertFatal(ru!=NULL,"ru is null\n");
 
   int16_t            **rxsigF=NULL;
@@ -191,8 +191,9 @@ void rx_nr_prach_ru(RU_t *ru,
   AssertFatal(ru->if_south == LOCAL_RF || ru->if_south == REMOTE_IF5,
               "we shouldn't call this if if_south != LOCAL_RF or REMOTE_IF5\n");
 
-  for (int aa=0; aa<ru->nb_rx; aa++){ 
-    if (prach_sequence_length == 0) slot2=(slot/fp->slots_per_subframe)*fp->slots_per_subframe; 
+  for (int aa=0; aa<ru->nb_rx; aa++){
+    if (prach_sequence_length == 0)
+      slot2 = prachStartSlot;
     prach[aa] = (int16_t*)&ru->common.rxdata[aa][fp->get_samples_slot_timestamp(slot2,fp,0)+sample_offset_slot-ru->N_TA_offset];
   } 
 
@@ -420,7 +421,6 @@ void rx_nr_prach_ru(RU_t *ru,
     }
     memcpy((void*)rxsigF2,(void *)rxsigF_tmp,N_ZC<<2);
   }
-
 }
 
 void rx_nr_prach(PHY_VARS_gNB *gNB,

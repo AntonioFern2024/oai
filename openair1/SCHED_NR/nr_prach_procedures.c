@@ -117,9 +117,9 @@ void L1_nr_prach_procedures(PHY_VARS_gNB *gNB,int frame,int slot) {
 
   ru=gNB->RU_list[0];
 
-  int prach_id=find_nr_prach(gNB,frame,slot,SEARCH_EXIST);
-
-  if (prach_id>=0) {
+  ru_prach_data_t *prach_data = ru->prach_data + slot;
+  int prach_id = prach_data->prach_id;
+  if (prach_data->process_prach_flag) {
     LOG_D(NR_PHY,"%d.%d Got prach entry id %d\n",frame,slot,prach_id);
     nfapi_nr_prach_pdu_t *prach_pdu = &gNB->prach_vars.list[prach_id].pdu;
     uint8_t prachStartSymbol;
@@ -156,7 +156,7 @@ void L1_nr_prach_procedures(PHY_VARS_gNB *gNB,int frame,int slot) {
               "[RAPROC] %d.%d Initiating RA procedure with preamble %d, energy %d.%d dB (I0 %d, thres %d), delay %d start symbol "
               "%u freq index %u\n",
               frame,
-              slot,
+              prach_data->prach_start_slot,
               max_preamble[0],
               max_preamble_energy[0] / 10,
               max_preamble_energy[0] % 10,
@@ -194,7 +194,9 @@ void L1_nr_prach_procedures(PHY_VARS_gNB *gNB,int frame,int slot) {
       if (frame==0) LOG_I(PHY,"prach_I0 = %d.%d dB\n",gNB->measurements.prach_I0/10,gNB->measurements.prach_I0%10);
       if (gNB->prach_energy_counter < 100) gNB->prach_energy_counter++;
     } //if prach_id>0
-  } //for NUMBER_OF_NR_PRACH_OCCASION_MAX
+    gNB->UL_INFO.rach_ind.slot = prach_data->prach_start_slot;
+    prach_data->process_prach_flag = false;
+  } // for NUMBER_OF_NR_PRACH_OCCASION_MAX
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_ENB_PRACH_RX,0);
 }
 

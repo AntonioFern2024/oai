@@ -255,6 +255,12 @@ typedef struct {
   NR_UE_ServingCell_Info_t sc_info;
 } NR_RA_t;
 
+typedef struct {
+  int n_ra_rb;
+  int beam_idx;
+  bool contains;
+} NR_PRACH_Slot_info_t;
+
 /*! \brief gNB common channels */
 typedef struct {
   frame_type_t frame_type;
@@ -287,6 +293,8 @@ typedef struct {
   uint8_t ssb_index[MAX_NUM_OF_SSB];
   //CB preambles for each SSB
   int cb_preambles_per_ssb;
+  /// Flag to indicate if prach extends beyond a slot
+  NR_PRACH_Slot_info_t *sched_long_prach_info;
 } NR_COMMON_channels_t;
 
 // SP ZP CSI-RS Resource Set Activation/Deactivation MAC CE

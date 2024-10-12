@@ -1132,6 +1132,37 @@ void ru_tx_func(void *param) {
   LOG_D(PHY,"rt_prof_idx %d : RU_TX time %d\n",rt_prof_idx,(int)(1e9 * (t1->tv_sec - t0->tv_sec) + (t1->tv_nsec-t0->tv_nsec)));
 }
 
+static void fill_prach_frame_data(int slot, int prach_id, RU_t *ru)
+{
+  int format = ru->prach_list[prach_id].fmt;
+  NR_DL_FRAME_PARMS *fp = ru->nr_frame_parms;
+  ru_prach_data_t *d;
+  unsigned int slots_per_subframe = fp->slots_per_subframe;
+  unsigned int prach_len = 1;
+  if (format < 3) { // long format
+    switch (format) {
+      case 0: // 1ms
+      case 3:
+        prach_len = slots_per_subframe;
+        break;
+
+      case 1: // 3ms
+        prach_len = 3 * slots_per_subframe;
+        break;
+
+      case 2: // 4.3ms
+        prach_len = 5 * slots_per_subframe;
+        break;
+    }
+  }
+  unsigned int prach_last_slot = slot + prach_len - 1;
+  AssertFatal(prach_last_slot <= fp->slots_per_frame, "Prach length %d in slot %d goes beyond frame\n", prach_len, slot);
+  d = ru->prach_data + prach_last_slot;
+  d->prach_id = prach_id;
+  d->prach_start_slot = slot;
+  d->process_prach_flag = true;
+}
+
 void *ru_thread( void *param ) {
   static int ru_thread_status;
   RU_t               *ru      = (RU_t *)param;
@@ -1365,7 +1396,11 @@ void *ru_thread( void *param ) {
 
         // Do PRACH RU processing
         int prach_id = find_nr_prach_ru(ru, proc->frame_rx, proc->tti_rx, SEARCH_EXIST);
-        if (prach_id>=0) {
+        if (prach_id >= 0)
+          fill_prach_frame_data(proc->tti_rx, prach_id, ru);
+        ru_prach_data_t *prach_data = ru->prach_data + proc->tti_rx;
+        prach_id = prach_data->prach_id;
+        if (prach_data->process_prach_flag) {
           VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME( VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_RU_PRACH_RX, 1 );
 
           T(T_GNB_PHY_PRACH_INPUT_SIGNAL, T_INT(proc->frame_rx), T_INT(proc->tti_rx), T_INT(0),
@@ -1379,13 +1414,15 @@ void *ru_thread( void *param ) {
                            ru->prach_list[prach_id].fmt, //could also use format
                            ru->prach_list[prach_id].numRA,
                            prachStartSymbol,
+                           prach_data->prach_start_slot,
                            prach_oc,
-                           proc->frame_rx,proc->tti_rx);
+                           proc->frame_rx,
+                           proc->tti_rx);
           }
           clock_gettime(CLOCK_MONOTONIC,&ru->rt_ru_profiling.return_RU_prachrx[rt_prof_idx]);
           free_nr_ru_prach_entry(ru,prach_id);
           VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME( VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_RU_PRACH_RX, 0 );
-        } // end if (prach_id > 0)
+        } // end if (prach_data->process_prach_flag)
       } // end if (ru->feprx)
       else {
          memset(&ru->rt_ru_profiling.return_RU_feprx[rt_prof_idx],0,sizeof(struct timespec));

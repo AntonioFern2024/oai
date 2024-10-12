@@ -256,8 +256,27 @@ void find_SSB_and_RO_available(gNB_MAC_INST *nrmac)
         cc->max_association_period,
         N_RA_sfn,
         cc->total_prach_occasions_per_config_period);
-}		
-		
+}
+
+static void fill_vrb(const frame_t frame,
+                     const sub_frame_t slot,
+                     int nb_rb,
+                     int beam_idx,
+                     int vrb_size,
+                     int mu,
+                     int rb_start,
+                     int start_symb,
+                     int num_symb,
+                     NR_COMMON_channels_t *cc)
+{
+  const int index = ul_buffer_index(frame, slot, mu, vrb_size);
+  uint16_t *vrb_map_UL = &cc->vrb_map_UL[beam_idx][index * MAX_BWP_SIZE];
+  for (int i = 0; i < nb_rb; ++i)
+    vrb_map_UL[rb_start + i] |= SL_to_bitmap(start_symb, num_symb);
+}
+
+static uint8_t long_prach_dur[4] = {1, 3, 5, 1}; // ms
+
 void schedule_nr_prach(module_id_t module_idP, frame_t frameP, sub_frame_t slotP)
 {
   gNB_MAC_INST *gNB = RC.nrmac[module_idP];
@@ -433,10 +452,44 @@ void schedule_nr_prach(module_id_t module_idP, frame_t frameP, sub_frame_t slotP
       // block resources in vrb_map_UL
       const int mu_pusch = scc->uplinkConfigCommon->frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing;
       const int16_t n_ra_rb = get_N_RA_RB(cfg->prach_config.prach_sub_c_spacing.value, mu_pusch);
-      index = ul_buffer_index(frameP, slotP, mu, gNB->vrb_map_UL_size);
-      uint16_t *vrb_map_UL = &cc->vrb_map_UL[beam.idx][index * MAX_BWP_SIZE];
-      for (int i = 0; i < n_ra_rb * fdm; ++i)
-        vrb_map_UL[bwp_start + rach_ConfigGeneric->msg1_FrequencyStart + i] |= SL_to_bitmap(start_symbol, N_t_slot * N_dur);
+      fill_vrb(frameP,
+               slotP,
+               n_ra_rb * fdm,
+               beam.idx,
+               gNB->vrb_map_UL_size,
+               mu,
+               bwp_start + rach_ConfigGeneric->msg1_FrequencyStart,
+               start_symbol,
+               N_t_slot * 14,
+               cc);
+      // mark PRBs as occupied for future slots if prach extends beyond current slot
+      if (format < 4) {
+        const int prach_dur_subframes = long_prach_dur[format];
+        const int num_slots_subframe = (1 << mu_pusch);
+        const int total_prach_slots = prach_dur_subframes * num_slots_subframe;
+        AssertFatal(slotP + total_prach_slots - 1 < nr_slots_per_frame[mu_pusch], "PRACH cannot extend across frames\n");
+        for (int i = 0; i < total_prach_slots; i++) {
+          NR_PRACH_Slot_info_t *c = cc->sched_long_prach_info + slotP + i;
+          c->beam_idx = beam.idx;
+          c->n_ra_rb = n_ra_rb;
+          c->contains = true;
+        }
+      }
+    } else {
+      // current slot containes prach thats extends beyond the scheduled slot (l839)
+      NR_PRACH_Slot_info_t *c = cc->sched_long_prach_info + slotP;
+      if (c->contains) {
+        fill_vrb(frameP,
+                 slotP,
+                 c->n_ra_rb * fdm,
+                 c->beam_idx,
+                 gNB->vrb_map_UL_size,
+                 mu,
+                 bwp_start + rach_ConfigGeneric->msg1_FrequencyStart,
+                 0,
+                 14,
+                 cc);
+      }
     }
   }
 }

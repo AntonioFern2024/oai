@@ -160,6 +160,8 @@ int nr_phy_init_RU(RU_t *ru) {
 
   init_prach_ru_list(ru);
 
+  ru->prach_data = calloc(1, sizeof(*ru->prach_data) * fp->slots_per_frame);
+
   return(0);
 }
 
@@ -217,4 +219,5 @@ void nr_phy_free_RU(RU_t *ru)
     }
   }
   free_and_zero(ru->common.sync_corr);
+  free_and_zero(ru->prach_data);
 }
