@@ -706,7 +706,7 @@ void rrc_gNB_send_NGAP_UPLINK_NAS(gNB_RRC_UE_t *UE, const NR_UL_DCCH_Message_t *
         NGAP_UPLINK_NAS(msg_p).gNB_ue_ngap_id = UE->rrc_ue_id;
         NGAP_UPLINK_NAS (msg_p).nas_pdu.length = nas->size;
         NGAP_UPLINK_NAS (msg_p).nas_pdu.buffer = buf;
-        itti_send_msg_to_task(TASK_NGAP, 0, msg_p);
+        itti_send_msg_to_task (TASK_NGAP, 0, msg_p);
         LOG_D(NR_RRC,"Send RRC GNB UL Information Transfer \n");
     }
 }
@@ -1191,19 +1191,16 @@ void rrc_gNB_send_NGAP_UE_CONTEXT_RELEASE_COMPLETE(instance_t instance,
   itti_send_msg_to_task(TASK_NGAP, instance, msg);
 }
 
-void rrc_gNB_send_NGAP_UE_CAPABILITIES_IND(const protocol_ctxt_t *const ctxt_pP,
-                                           rrc_gNB_ue_context_t *const ue_context_pP,
-                                           const NR_UECapabilityInformation_t *const ue_cap_info)
+void rrc_gNB_send_NGAP_UE_CAPABILITIES_IND(gNB_RRC_UE_t *UE, const NR_UECapabilityInformation_t *const ue_cap_info)
 //------------------------------------------------------------------------------
 {
   NR_UE_CapabilityRAT_ContainerList_t *ueCapabilityRATContainerList =
       ue_cap_info->criticalExtensions.choice.ueCapabilityInformation->ue_CapabilityRAT_ContainerList;
   void *buf;
   NR_UERadioAccessCapabilityInformation_t rac = {0};
-  gNB_RRC_UE_t *UE = &ue_context_pP->ue_context;
 
   if (ueCapabilityRATContainerList->list.count == 0) {
-    LOG_W(RRC, "[gNB %d][UE %x] bad UE capabilities\n", ctxt_pP->module_id, UE->rnti);
+    LOG_W(RRC, "[UE %d] bad UE capabilities\n", UE->rrc_ue_id);
     }
 
     int ret = uper_encode_to_new_buffer(&asn_DEF_NR_UE_CapabilityRAT_ContainerList, NULL, ueCapabilityRATContainerList, &buf);
@@ -1230,7 +1227,7 @@ void rrc_gNB_send_NGAP_UE_CAPABILITIES_IND(const protocol_ctxt_t *const ctxt_pP,
     ind->gNB_ue_ngap_id = UE->rrc_ue_id;
     ind->ue_radio_cap.length = encoded;
     ind->ue_radio_cap.buffer = buf2;
-    itti_send_msg_to_task (TASK_NGAP, ctxt_pP->instance, msg_p);
+    itti_send_msg_to_task (TASK_NGAP, 0, msg_p);
     LOG_I(NR_RRC,"Send message to ngap: NGAP_UE_CAPABILITIES_IND\n");
 }
 
