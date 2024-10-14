@@ -212,7 +212,7 @@ sequenceDiagram
   sdu->>cucp: F1AP Context Modification Resp
   Note over sdu: Stop scheduling UE
   Note over ue: Resync
-  ue<<->>tdu: Msg1 + Msg2
+  Note over ue,tdu: RA (Msg1 + Msg2)
   ue->>tdu: RRC Reconfiguration Complete
   tdu->>cucp: F1AP UL RRC Msg Transfer (RRC Reconfiguration Complete)
   Note over cucp: handle_rrcReconfigurationComplete() ("on target CU")
