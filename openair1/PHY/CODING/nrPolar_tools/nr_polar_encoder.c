@@ -47,7 +47,7 @@ void polar_encoder(uint32_t *in,
                    int8_t messageType,
                    uint16_t messageLength,
                    uint8_t aggregation_level) {
-  t_nrPolar_params *polarParams=nr_polar_params(messageType, messageLength, aggregation_level, false);
+  t_nrPolar_params *polarParams = nr_polar_params(messageType, messageLength, aggregation_level);
   uint8_t nr_polar_A[polarParams->payloadBits];
   nr_bit2byte_uint32_8(in, polarParams->payloadBits, nr_polar_A);
   /*
@@ -146,7 +146,7 @@ void polar_encoder_dci(uint32_t *in,
                        int8_t messageType,
                        uint16_t messageLength,
                        uint8_t aggregation_level) {
-  t_nrPolar_params *polarParams=nr_polar_params(messageType, messageLength, aggregation_level, false);
+  t_nrPolar_params *polarParams = nr_polar_params(messageType, messageLength, aggregation_level);
 
 #ifdef DEBUG_POLAR_ENCODER_DCI
   printf("[polar_encoder_dci] in: [0]->0x%08x \t [1]->0x%08x \t [2]->0x%08x \t [3]->0x%08x\n", in[0], in[1], in[2], in[3]);
@@ -452,6 +452,8 @@ void build_polar_tables(t_nrPolar_params *polarParams) {
   // rerun again to create groups
   for (int outpos = 0, tcnt = 0; outpos < polarParams->encoderLength; outpos += mingroupsize, tcnt++)
     polarParams->rm_tab[tcnt] = polarParams->rate_matching_pattern[outpos] >> shift;
+
+  build_decoder_tree(polarParams);
 }
 
 
@@ -463,7 +465,7 @@ void polar_encoder_fast(uint64_t *A,
                         uint16_t messageLength,
                         uint8_t aggregation_level)
 {
-  t_nrPolar_params *polarParams=nr_polar_params(messageType, messageLength, aggregation_level, false);
+  t_nrPolar_params *polarParams = nr_polar_params(messageType, messageLength, aggregation_level);
 
 #ifdef POLAR_CODING_DEBUG
   printf("polarParams->payloadBits = %i\n", polarParams->payloadBits);
