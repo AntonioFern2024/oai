@@ -169,10 +169,7 @@ void rrc_gNB_send_NGAP_NAS_FIRST_REQ(gNB_RRC_UE_t *UE, NR_RRCSetupComplete_IEs_t
   req->gNB_ue_ngap_id = UE->rrc_ue_id;
 
   /* Assume that cause is coded in the same way in RRC and NGap, just check that the value is in NGap range */
-  AssertFatal(UE->establishment_cause < NGAP_RRC_CAUSE_LAST,
-              "Establishment cause invalid (%jd/%d)!",
-              UE->establishment_cause,
-              NGAP_RRC_CAUSE_LAST);
+  AssertFatal(UE->establishment_cause < NGAP_RRC_CAUSE_LAST, "Establishment cause invalid (%jd/%d)!", UE->establishment_cause, NGAP_RRC_CAUSE_LAST);
   req->establishment_cause = UE->establishment_cause;
 
   /* Forward NAS message */
@@ -221,7 +218,7 @@ void rrc_gNB_send_NGAP_NAS_FIRST_REQ(gNB_RRC_UE_t *UE, NR_RRCSetupComplete_IEs_t
     req->ue_identity.presenceMask = NGAP_UE_IDENTITIES_NONE;
   }
 
-  itti_send_msg_to_task(TASK_NGAP, 0, message_p);
+  itti_send_msg_to_task (TASK_NGAP, 0, message_p);
 }
 
 static void fill_qos(NGAP_QosFlowSetupRequestList_t *qos, pdusession_t *session)
@@ -510,7 +507,7 @@ int rrc_gNB_process_NGAP_INITIAL_CONTEXT_SETUP_REQ(MessageDef *msg_p, instance_t
     } else {
       /* no PDU sesion to setup: acknowledge this message, and forward NAS
        * message, if required */
-      rrc_gNB_send_NGAP_INITIAL_CONTEXT_SETUP_RESP(&ctxt, ue_context_p);
+      rrc_gNB_send_NGAP_INITIAL_CONTEXT_SETUP_RESP(UE);
       rrc_forward_ue_nas_message(rrc, UE);
     }
   }
@@ -522,16 +519,13 @@ int rrc_gNB_process_NGAP_INITIAL_CONTEXT_SETUP_REQ(MessageDef *msg_p, instance_t
   return 0;
 }
 
-//------------------------------------------------------------------------------
-void rrc_gNB_send_NGAP_INITIAL_CONTEXT_SETUP_RESP(const protocol_ctxt_t *const ctxt_pP, rrc_gNB_ue_context_t *const ue_context_pP)
-//------------------------------------------------------------------------------
+void rrc_gNB_send_NGAP_INITIAL_CONTEXT_SETUP_RESP(gNB_RRC_UE_t *UE)
 {
   MessageDef *msg_p = NULL;
   int pdu_sessions_done = 0;
   int pdu_sessions_failed = 0;
   msg_p = itti_alloc_new_message (TASK_RRC_ENB, 0, NGAP_INITIAL_CONTEXT_SETUP_RESP);
   ngap_initial_context_setup_resp_t *resp = &NGAP_INITIAL_CONTEXT_SETUP_RESP(msg_p);
-  gNB_RRC_UE_t *UE = &ue_context_pP->ue_context;
 
   resp->gNB_ue_ngap_id = UE->rrc_ue_id;
 
@@ -562,7 +556,7 @@ void rrc_gNB_send_NGAP_INITIAL_CONTEXT_SETUP_RESP(const protocol_ctxt_t *const c
 
   resp->nb_of_pdusessions = pdu_sessions_done;
   resp->nb_of_pdusessions_failed = pdu_sessions_failed;
-  itti_send_msg_to_task (TASK_NGAP, ctxt_pP->instance, msg_p);
+  itti_send_msg_to_task (TASK_NGAP, 0, msg_p);
 }
 
 static NR_CipheringAlgorithm_t rrc_gNB_select_ciphering(const gNB_RRC_INST *rrc, uint16_t algorithms)
@@ -728,14 +722,7 @@ rrc_gNB_send_NGAP_UPLINK_NAS(
     }
 }
 
-//------------------------------------------------------------------------------
-void
-rrc_gNB_send_NGAP_PDUSESSION_SETUP_RESP(
-  const protocol_ctxt_t    *const ctxt_pP,
-  rrc_gNB_ue_context_t     *const ue_context_pP,
-  uint8_t                   xid
-)
-//------------------------------------------------------------------------------
+void rrc_gNB_send_NGAP_PDUSESSION_SETUP_RESP(gNB_RRC_UE_t *UE, uint8_t xid)
 {
   MessageDef *msg_p;
   int pdu_sessions_done = 0;
@@ -743,7 +730,6 @@ rrc_gNB_send_NGAP_PDUSESSION_SETUP_RESP(
 
   msg_p = itti_alloc_new_message (TASK_RRC_GNB, 0, NGAP_PDUSESSION_SETUP_RESP);
   ngap_pdusession_setup_resp_t *resp = &NGAP_PDUSESSION_SETUP_RESP(msg_p);
-  gNB_RRC_UE_t *UE = &ue_context_pP->ue_context;
   resp->gNB_ue_ngap_id = UE->rrc_ue_id;
 
   for (int pdusession = 0; pdusession < UE->nb_of_pdusessions; pdusession++) {
@@ -790,7 +776,7 @@ rrc_gNB_send_NGAP_PDUSESSION_SETUP_RESP(
 
   if ((pdu_sessions_done > 0 || pdu_sessions_failed)) {
     LOG_I(NR_RRC, "NGAP_PDUSESSION_SETUP_RESP: sending the message\n");
-    itti_send_msg_to_task (TASK_NGAP, ctxt_pP->instance, msg_p);
+    itti_send_msg_to_task (TASK_NGAP, 0, msg_p);
   }
 
   for(int i = 0; i < NB_RB_MAX; i++) {
@@ -1016,19 +1002,11 @@ int rrc_gNB_process_NGAP_PDUSESSION_MODIFY_REQ(MessageDef *msg_p, instance_t ins
   return (0);
 }
 
-//------------------------------------------------------------------------------
-int
-rrc_gNB_send_NGAP_PDUSESSION_MODIFY_RESP(
-  const protocol_ctxt_t    *const ctxt_pP,
-  rrc_gNB_ue_context_t     *const ue_context_pP,
-  uint8_t                   xid
-)
-//------------------------------------------------------------------------------
+int rrc_gNB_send_NGAP_PDUSESSION_MODIFY_RESP(gNB_RRC_UE_t *UE, uint8_t xid)
 {
   MessageDef *msg_p = NULL;
   uint8_t pdu_sessions_failed = 0;
   uint8_t pdu_sessions_done = 0;
-  gNB_RRC_UE_t *UE = &ue_context_pP->ue_context;
 
   msg_p = itti_alloc_new_message (TASK_RRC_GNB, 0, NGAP_PDUSESSION_MODIFY_RESP);
   if (msg_p == NULL) {
@@ -1097,7 +1075,7 @@ rrc_gNB_send_NGAP_PDUSESSION_MODIFY_RESP(
 
   if (pdu_sessions_done > 0 || pdu_sessions_failed > 0) {
     LOG_D(NR_RRC, "NGAP_PDUSESSION_MODIFY_RESP: sending the message (total pdu session %d)\n", UE->nb_of_pdusessions);
-    itti_send_msg_to_task (TASK_NGAP, ctxt_pP->instance, msg_p);
+    itti_send_msg_to_task (TASK_NGAP, 0, msg_p);
   } else {
     itti_free (ITTI_MSG_ORIGIN_ID(msg_p), msg_p);
   }
@@ -1267,18 +1245,10 @@ void rrc_gNB_send_NGAP_UE_CAPABILITIES_IND(const protocol_ctxt_t *const ctxt_pP,
     LOG_I(NR_RRC,"Send message to ngap: NGAP_UE_CAPABILITIES_IND\n");
 }
 
-//------------------------------------------------------------------------------
-void
-rrc_gNB_send_NGAP_PDUSESSION_RELEASE_RESPONSE(
-  const protocol_ctxt_t    *const ctxt_pP,
-  rrc_gNB_ue_context_t     *const ue_context_pP,
-  uint8_t                   xid
-)
-//------------------------------------------------------------------------------
+void rrc_gNB_send_NGAP_PDUSESSION_RELEASE_RESPONSE(gNB_RRC_UE_t *UE, uint8_t xid)
 {
   int pdu_sessions_released = 0;
   MessageDef   *msg_p;
-  gNB_RRC_UE_t *UE = &ue_context_pP->ue_context;
   msg_p = itti_alloc_new_message (TASK_RRC_GNB, 0, NGAP_PDUSESSION_RELEASE_RESPONSE);
   ngap_pdusession_release_resp_t *resp = &NGAP_PDUSESSION_RELEASE_RESPONSE(msg_p);
   memset(resp, 0, sizeof(*resp));
@@ -1298,7 +1268,7 @@ rrc_gNB_send_NGAP_PDUSESSION_RELEASE_RESPONSE(
   resp->nb_of_pdusessions_released = pdu_sessions_released;
   resp->nb_of_pdusessions_failed = 0;
   LOG_I(NR_RRC, "NGAP PDUSESSION RELEASE RESPONSE: rrc_ue_id %u release_pdu_sessions %d\n", resp->gNB_ue_ngap_id, pdu_sessions_released);
-  itti_send_msg_to_task (TASK_NGAP, ctxt_pP->instance, msg_p);
+  itti_send_msg_to_task (TASK_NGAP, 0, msg_p);
 }
 
 //------------------------------------------------------------------------------
@@ -1362,7 +1332,7 @@ int rrc_gNB_process_NGAP_PDUSESSION_RELEASE_COMMAND(MessageDef *msg_p, instance_
     req.ue_id = UE->rnti;
     gtpv1u_delete_ngu_tunnel(instance, &req);
     // NGAP_PDUSESSION_RELEASE_RESPONSE
-    rrc_gNB_send_NGAP_PDUSESSION_RELEASE_RESPONSE(&ctxt, ue_context_p, xid);
+    rrc_gNB_send_NGAP_PDUSESSION_RELEASE_RESPONSE(UE, xid);
     LOG_I(NR_RRC, "Send PDU Session Release Response \n");
   }
   return 0;
