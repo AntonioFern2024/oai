@@ -93,7 +93,21 @@ static const uint16_t NGAP_INTEGRITY_NIA3_MASK = 0x2000;
 
 #define INTEGRITY_ALGORITHM_NONE NR_IntegrityProtAlgorithm_nia0
 
+static bool check_UE_security_algos_changed(const gNB_RRC_INST *rrc,
+                                            const gNB_RRC_UE_t *UE,
+                                            const ngap_security_capabilities_t *cap);
 static void set_UE_security_algos(const gNB_RRC_INST *rrc, gNB_RRC_UE_t *UE, const ngap_security_capabilities_t *cap);
+
+/*
+ * \brief check if UE's security key changed
+ * \param UE              UE context.
+ * \param security_key    The security key received from NGAP.
+ */
+static bool check_UE_security_key_changed(const gNB_RRC_UE_t *UE, const uint8_t *security_key)
+{
+  int rc = memcmp(UE->kgnb, security_key, SECURITY_KEY_LENGTH);
+  return rc != 0;
+}
 
 /*!
  *\brief save security key.
@@ -456,12 +470,30 @@ int rrc_gNB_process_NGAP_INITIAL_CONTEXT_SETUP_REQ(MessageDef *msg_p, instance_t
   UE->nas_pdu = req->nas_pdu;
 
   /* security */
-  set_UE_security_algos(rrc, UE, &req->security_capabilities);
-  set_UE_security_key(UE, req->security_key);
+  if (!UE->as_security_active) {
+    set_UE_security_algos(rrc, UE, &req->security_capabilities);
+    set_UE_security_key(UE, req->security_key);
 
-  /* configure only integrity, ciphering comes after receiving SecurityModeComplete */
-  nr_rrc_pdcp_config_security(UE, 0);
-  rrc_gNB_generate_SecurityModeCommand(UE);
+    /* configure only integrity, ciphering comes after receiving SecurityModeComplete */
+    nr_rrc_pdcp_config_security(UE, 0);
+    rrc_gNB_generate_SecurityModeCommand(UE);
+  } else {
+    /* security is already active. If the security algos/keys changed, reject
+     * the message, as we cannot handle this (38.331 seems to imply this should
+     * only happen once?) */
+    bool algo_change = check_UE_security_algos_changed(rrc, UE, &req->security_capabilities);
+    bool key_change = check_UE_security_key_changed(UE, req->security_key);
+    if (algo_change || key_change) {
+      LOG_E(NR_RRC,
+            "NGAP Initial Context Setup Req for UE %d: security is already setup and AMF requested to change keys\n",
+            req->gNB_ue_ngap_id);
+      MessageDef *msg_fail_p = itti_alloc_new_message(TASK_RRC_GNB, 0, NGAP_INITIAL_CONTEXT_SETUP_FAIL);
+      NGAP_INITIAL_CONTEXT_SETUP_FAIL(msg_fail_p).gNB_ue_ngap_id = req->gNB_ue_ngap_id;
+      // TODO add failure cause when defined!
+      itti_send_msg_to_task(TASK_NGAP, instance, msg_fail_p);
+      return (-1);
+    }
+  }
 
   if (req->nb_of_pdusessions > 0) {
     /* if there are PDU sessions to setup, store them to be created once
@@ -471,6 +503,23 @@ int rrc_gNB_process_NGAP_INITIAL_CONTEXT_SETUP_REQ(MessageDef *msg_p, instance_t
     AssertFatal(UE->initial_pdus != NULL, "out of memory\n");
     for (int i = 0; i < UE->n_initial_pdu; ++i)
       UE->initial_pdus[i] = req->pdusession_param[i];
+  }
+
+  if (UE->as_security_active) {
+    /* if AS security key is active, we also have the UE capabilities. Then,
+     * there are two possibilities: we should set up PDU sessions, and/or
+     * forward the NAS message. */
+    if (req->nb_of_pdusessions > 0) {
+      // do not remove the above allocation which is reused here: this is used
+      // in handle_rrcReconfigurationComplete() to know that we need to send a
+      // Initial context setup response message
+      trigger_bearer_setup(rrc, UE, UE->n_initial_pdu, UE->initial_pdus, 0);
+    } else {
+      /* no PDU sesion to setup: acknowledge this message, and forward NAS
+       * message, if required */
+      rrc_gNB_send_NGAP_INITIAL_CONTEXT_SETUP_RESP(&ctxt, ue_context_p);
+      rrc_forward_ue_nas_message(rrc, UE);
+    }
   }
 
 #ifdef E2_AGENT
@@ -588,6 +637,20 @@ static e_NR_IntegrityProtAlgorithm rrc_gNB_select_integrity(const gNB_RRC_INST *
 
   return ret;
 }
+
+/*
+ * \brief check if security algorithms for this UE changed.
+ * \param rrc     pointer to RRC context
+ * \param UE      UE context
+ * \param cap     security capabilities for this UE
+ */
+static bool check_UE_security_algos_changed(const gNB_RRC_INST *rrc, const gNB_RRC_UE_t *UE, const ngap_security_capabilities_t *cap)
+{
+  NR_CipheringAlgorithm_t cipheringAlgorithm = rrc_gNB_select_ciphering(rrc, cap->nRencryption_algorithms);
+  e_NR_IntegrityProtAlgorithm integrityProtAlgorithm = rrc_gNB_select_integrity(rrc, cap->nRintegrity_algorithms);
+  return UE->ciphering_algorithm != cipheringAlgorithm || UE->integrity_algorithm != integrityProtAlgorithm;
+}
+
 
 /*
  * \brief set security algorithms
