@@ -38,7 +38,7 @@ services:
         devices:
             - /dev/net/tun:/dev/net/tun
         volumes:
-            - ../../conf_files/nrue.uicc.conf:/opt/oai-nr-ue/etc/nr-ue.conf
+            - ../../conf_files/nrue.nsa.uicc.conf:/opt/oai-nr-ue/etc/nr-ue.conf
             - rrc.config:/opt/oai-nr-ue/etc/rrc/
         depends_on:
             - oai-gnb
