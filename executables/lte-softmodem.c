@@ -445,7 +445,8 @@ int main ( int argc, char **argv )
   lock_memory_to_ram();
   printf("Reading in command-line options\n");
   get_options(uniqCfg);
-
+  set_log(SCTP,OAILOG_DEBUG);
+  set_log(S1AP,OAILOG_DEBUG);
   EPC_MODE_ENABLED = !IS_SOFTMODEM_NOS1;
 
   if (CONFIG_ISFLAGSET(CONFIG_ABORT) ) {
