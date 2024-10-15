@@ -887,12 +887,10 @@ void nr_rrc_config_dl_tda(struct NR_PDSCH_TimeDomainResourceAllocationList *pdsc
 }
 
 
-void nr_rrc_config_ul_tda(NR_ServingCellConfigCommon_t *scc, int min_fb_delay){
-
-  //TODO change to accomodate for SRS
-
+void nr_rrc_config_ul_tda(NR_ServingCellConfigCommon_t *scc, int min_fb_delay)
+{
   frame_type_t frame_type = get_frame_type(*scc->downlinkConfigCommon->frequencyInfoDL->frequencyBandList.list.array[0], *scc->ssbSubcarrierSpacing);
-  const int k2 = min_fb_delay;
+  const int k2 = min_fb_delay;  // NOTE if this is changed, it would affect global_k2 in gNB_MAC_INST
 
   uint8_t DELTA[4]= {2,3,4,6}; // Delta parameter for Msg3
   int mu = scc->uplinkConfigCommon->initialUplinkBWP->genericParameters.subcarrierSpacing;
