@@ -1258,8 +1258,8 @@ void rrc_gNB_send_NGAP_PDUSESSION_RELEASE_RESPONSE(gNB_RRC_UE_t *UE, uint8_t xid
 int rrc_gNB_process_NGAP_PDUSESSION_RELEASE_COMMAND(MessageDef *msg_p, instance_t instance)
 //------------------------------------------------------------------------------
 {
+  gNB_RRC_INST *rrc = RC.nrrrc[instance];
   uint32_t gNB_ue_ngap_id;
-  protocol_ctxt_t ctxt;
   ngap_pdusession_release_command_t *cmd = &NGAP_PDUSESSION_RELEASE_COMMAND(msg_p);
   gNB_ue_ngap_id = cmd->gNB_ue_ngap_id;
   if (cmd->nb_pdusessions_torelease > NGAP_MAX_PDUSESSION) {
@@ -1275,11 +1275,10 @@ int rrc_gNB_process_NGAP_PDUSESSION_RELEASE_COMMAND(MessageDef *msg_p, instance_
 
   LOG_I(NR_RRC, "[gNB %ld] gNB_ue_ngap_id %u \n", instance, gNB_ue_ngap_id);
   gNB_RRC_UE_t *UE = &ue_context_p->ue_context;
-  PROTOCOL_CTXT_SET_BY_INSTANCE(&ctxt, instance, GNB_FLAG_YES, UE->rrc_ue_id, 0, 0);
   LOG_I(
       NR_RRC, "PDU Session Release Command: AMF_UE_NGAP_ID %lu  rrc_ue_id %u release_pdusessions %d \n", cmd->amf_ue_ngap_id, gNB_ue_ngap_id, cmd->nb_pdusessions_torelease);
   bool found = false;
-  uint8_t xid = rrc_gNB_get_next_transaction_identifier(ctxt.module_id);
+  uint8_t xid = rrc_gNB_get_next_transaction_identifier(0);
   UE->xids[xid] = RRC_PDUSESSION_RELEASE;
   for (int pdusession = 0; pdusession < cmd->nb_pdusessions_torelease; pdusession++) {
     rrc_pdu_session_param_t *pduSession = find_pduSession(UE, cmd->pdusession_release_params[pdusession].pdusession_id, false);
@@ -1307,7 +1306,7 @@ int rrc_gNB_process_NGAP_PDUSESSION_RELEASE_COMMAND(MessageDef *msg_p, instance_
   if (found) {
     // TODO RRCReconfiguration To UE
     LOG_I(NR_RRC, "Send RRCReconfiguration To UE \n");
-    rrc_gNB_generate_dedicatedRRCReconfiguration_release(&ctxt, ue_context_p, xid, cmd->nas_pdu.length, cmd->nas_pdu.buffer);
+    rrc_gNB_generate_dedicatedRRCReconfiguration_release(rrc, UE, xid, cmd->nas_pdu.length, cmd->nas_pdu.buffer);
   } else {
     // gtp tunnel delete
     LOG_I(NR_RRC, "gtp tunnel delete all tunnels for UE %04x\n", UE->rnti);
