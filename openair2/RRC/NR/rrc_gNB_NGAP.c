@@ -93,51 +93,46 @@ static const uint16_t NGAP_INTEGRITY_NIA3_MASK = 0x2000;
 
 #define INTEGRITY_ALGORITHM_NONE NR_IntegrityProtAlgorithm_nia0
 
-static int rrc_gNB_process_security(const protocol_ctxt_t *const ctxt_pP, rrc_gNB_ue_context_t *const ue_context_pP, ngap_security_capabilities_t *security_capabilities_pP);
+static bool check_UE_security_algos_changed(const gNB_RRC_INST *rrc,
+                                            const gNB_RRC_UE_t *UE,
+                                            const ngap_security_capabilities_t *cap);
+static void set_UE_security_algos(const gNB_RRC_INST *rrc, gNB_RRC_UE_t *UE, const ngap_security_capabilities_t *cap);
 
-/*! \fn void process_gNB_security_key (const protocol_ctxt_t* const ctxt_pP, eNB_RRC_UE_t * const ue_context_pP, uint8_t *security_key)
+/*
+ * \brief check if UE's security key changed
+ * \param UE              UE context.
+ * \param security_key    The security key received from NGAP.
+ */
+static bool check_UE_security_key_changed(const gNB_RRC_UE_t *UE, const uint8_t *security_key)
+{
+  int rc = memcmp(UE->kgnb, security_key, SECURITY_KEY_LENGTH);
+  return rc != 0;
+}
+
+/*!
  *\brief save security key.
- *\param ctxt_pP         Running context.
- *\param ue_context_pP   UE context.
+ *\param UE              UE context.
  *\param security_key_pP The security key received from NGAP.
  */
-//------------------------------------------------------------------------------
-void process_gNB_security_key (
-  const protocol_ctxt_t *const ctxt_pP,
-  rrc_gNB_ue_context_t  *const ue_context_pP,
-  uint8_t               *security_key_pP
-)
-//------------------------------------------------------------------------------
+static void set_UE_security_key(gNB_RRC_UE_t *UE, uint8_t *security_key_pP)
 {
-  char ascii_buffer[65];
-  uint8_t i;
-  gNB_RRC_UE_t *UE = &ue_context_pP->ue_context;
 
   /* Saves the security key */
   memcpy(UE->kgnb, security_key_pP, SECURITY_KEY_LENGTH);
   memset(UE->nh, 0, SECURITY_KEY_LENGTH);
   UE->nh_ncc = -1;
 
-  for (i = 0; i < 32; i++) {
+  char ascii_buffer[65] = {0};
+  for (int i = 0; i < 32; i++) {
     sprintf(&ascii_buffer[2 * i], "%02X", UE->kgnb[i]);
   }
 
-  ascii_buffer[2 * i] = '\0';
-  LOG_I(NR_RRC, "[gNB %d][UE %x] Saved security key %s\n", ctxt_pP->module_id, UE->rnti, ascii_buffer);
+  LOG_I(NR_RRC, "[UE %x] Saved security key %s\n", UE->rnti, ascii_buffer);
 }
 
-//------------------------------------------------------------------------------
-void
-nr_rrc_pdcp_config_security(
-    const protocol_ctxt_t  *const ctxt_pP,
-    rrc_gNB_ue_context_t   *const ue_context_pP,
-    const uint8_t          enable_ciphering
-)
-//------------------------------------------------------------------------------
+void nr_rrc_pdcp_config_security(gNB_RRC_UE_t *UE, const uint8_t enable_ciphering)
 {
-  //uint8_t                            *k_kdf  = NULL;
   static int                          print_keys= 1;
-  gNB_RRC_UE_t *UE = &ue_context_pP->ue_context;
 
   /* Derive the keys from kgnb */
   nr_pdcp_entity_security_keys_and_algos_t security_parameters;
@@ -157,33 +152,24 @@ nr_rrc_pdcp_config_security(
     }
   }
 
-  nr_pdcp_config_set_security(ctxt_pP->rntiMaybeUEid, DCCH, true, &security_parameters);
+  nr_pdcp_config_set_security(UE->rrc_ue_id, DCCH, true, &security_parameters);
 }
 
 //------------------------------------------------------------------------------
 /*
 * Initial UE NAS message on S1AP.
 */
-void
-rrc_gNB_send_NGAP_NAS_FIRST_REQ(
-    const protocol_ctxt_t     *const ctxt_pP,
-    rrc_gNB_ue_context_t      *ue_context_pP,
-    NR_RRCSetupComplete_IEs_t *rrcSetupComplete
-)
+void rrc_gNB_send_NGAP_NAS_FIRST_REQ(gNB_RRC_UE_t *UE, NR_RRCSetupComplete_IEs_t *rrcSetupComplete)
 //------------------------------------------------------------------------------
 {
-  // gNB_RRC_INST *rrc = RC.nrrrc[ctxt_pP->module_id];
-  MessageDef         *message_p         = NULL;
-  gNB_RRC_UE_t *UE = &ue_context_pP->ue_context;
-
-  message_p = itti_alloc_new_message(TASK_RRC_GNB, 0, NGAP_NAS_FIRST_REQ);
+  MessageDef *message_p = itti_alloc_new_message(TASK_RRC_GNB, 0, NGAP_NAS_FIRST_REQ);
   ngap_nas_first_req_t *req = &NGAP_NAS_FIRST_REQ(message_p);
   memset(req, 0, sizeof(*req));
 
   req->gNB_ue_ngap_id = UE->rrc_ue_id;
 
   /* Assume that cause is coded in the same way in RRC and NGap, just check that the value is in NGap range */
-  AssertFatal(UE->establishment_cause < NGAP_RRC_CAUSE_LAST, "Establishment cause invalid (%jd/%d) for gNB %d!", UE->establishment_cause, NGAP_RRC_CAUSE_LAST, ctxt_pP->module_id);
+  AssertFatal(UE->establishment_cause < NGAP_RRC_CAUSE_LAST, "Establishment cause invalid (%jd/%d)!", UE->establishment_cause, NGAP_RRC_CAUSE_LAST);
   req->establishment_cause = UE->establishment_cause;
 
   /* Forward NAS message */
@@ -224,8 +210,7 @@ rrc_gNB_send_NGAP_NAS_FIRST_REQ(
     UE->ue_guami.amf_pointer = req->ue_identity.guami.amf_pointer;
 
     LOG_I(NGAP,
-          "[gNB %d] Build NGAP_NAS_FIRST_REQ adding in s_TMSI: GUAMI amf_set_id %u amf_region_id %u ue %x\n",
-          ctxt_pP->module_id,
+          "Build NGAP_NAS_FIRST_REQ adding in s_TMSI: GUAMI amf_set_id %u amf_region_id %u ue %x\n",
           req->ue_identity.guami.amf_set_id,
           req->ue_identity.guami.amf_region_id,
           UE->rnti);
@@ -233,7 +218,7 @@ rrc_gNB_send_NGAP_NAS_FIRST_REQ(
     req->ue_identity.presenceMask = NGAP_UE_IDENTITIES_NONE;
   }
 
-  itti_send_msg_to_task (TASK_NGAP, ctxt_pP->instance, message_p);
+  itti_send_msg_to_task (TASK_NGAP, 0, message_p);
 }
 
 static void fill_qos(NGAP_QosFlowSetupRequestList_t *qos, pdusession_t *session)
@@ -441,7 +426,6 @@ void trigger_bearer_setup(gNB_RRC_INST *rrc, gNB_RRC_UE_t *UE, int n, pdusession
 int rrc_gNB_process_NGAP_INITIAL_CONTEXT_SETUP_REQ(MessageDef *msg_p, instance_t instance)
 //------------------------------------------------------------------------------
 {
-  protocol_ctxt_t ctxt = {0};
   ngap_initial_context_setup_req_t *req = &NGAP_INITIAL_CONTEXT_SETUP_REQ(msg_p);
 
   rrc_gNB_ue_context_t *ue_context_p = rrc_gNB_get_ue_context(RC.nrrrc[instance], req->gNB_ue_ngap_id);
@@ -457,7 +441,7 @@ int rrc_gNB_process_NGAP_INITIAL_CONTEXT_SETUP_REQ(MessageDef *msg_p, instance_t
     itti_send_msg_to_task(TASK_NGAP, instance, msg_fail_p);
     return (-1);
   }
-  PROTOCOL_CTXT_SET_BY_INSTANCE(&ctxt, instance, GNB_FLAG_YES, UE->rrc_ue_id, 0, 0);
+  gNB_RRC_INST *rrc = RC.nrrrc[instance];
   UE->amf_ue_ngap_id = req->amf_ue_ngap_id;
 
   /* store guami in gNB_RRC_UE_t context;
@@ -474,13 +458,31 @@ int rrc_gNB_process_NGAP_INITIAL_CONTEXT_SETUP_REQ(MessageDef *msg_p, instance_t
   UE->nas_pdu = req->nas_pdu;
 
   /* security */
-  rrc_gNB_process_security(&ctxt, ue_context_p, &req->security_capabilities);
-  process_gNB_security_key(&ctxt, ue_context_p, req->security_key);
+  if (!UE->as_security_active) {
+    set_UE_security_algos(rrc, UE, &req->security_capabilities);
+    set_UE_security_key(UE, req->security_key);
 
-  /* configure only integrity, ciphering comes after receiving SecurityModeComplete */
-  nr_rrc_pdcp_config_security(&ctxt, ue_context_p, 0);
+    /* configure only integrity, ciphering comes after receiving SecurityModeComplete */
+    nr_rrc_pdcp_config_security(UE, 0);
+    rrc_gNB_generate_SecurityModeCommand(UE);
+  } else {
+    /* security is already active. If the security algos/keys changed, reject
+     * the message, as we cannot handle this (38.331 seems to imply this should
+     * only happen once?) */
+    bool algo_change = check_UE_security_algos_changed(rrc, UE, &req->security_capabilities);
+    bool key_change = check_UE_security_key_changed(UE, req->security_key);
+    if (algo_change || key_change) {
+      LOG_E(NR_RRC,
+            "NGAP Initial Context Setup Req for UE %d: security is already setup and AMF requested to change keys\n",
+            req->gNB_ue_ngap_id);
+      MessageDef *msg_fail_p = itti_alloc_new_message(TASK_RRC_GNB, 0, NGAP_INITIAL_CONTEXT_SETUP_FAIL);
+      NGAP_INITIAL_CONTEXT_SETUP_FAIL(msg_fail_p).gNB_ue_ngap_id = req->gNB_ue_ngap_id;
+      // TODO add failure cause when defined!
+      itti_send_msg_to_task(TASK_NGAP, instance, msg_fail_p);
+      return (-1);
+    }
+  }
 
-  rrc_gNB_generate_SecurityModeCommand(&ctxt, ue_context_p);
   if (req->nb_of_pdusessions > 0) {
     /* if there are PDU sessions to setup, store them to be created once
      * security (and UE capabilities) are received */
@@ -491,6 +493,23 @@ int rrc_gNB_process_NGAP_INITIAL_CONTEXT_SETUP_REQ(MessageDef *msg_p, instance_t
       UE->initial_pdus[i] = req->pdusession_param[i];
   }
 
+  if (UE->as_security_active) {
+    /* if AS security key is active, we also have the UE capabilities. Then,
+     * there are two possibilities: we should set up PDU sessions, and/or
+     * forward the NAS message. */
+    if (req->nb_of_pdusessions > 0) {
+      // do not remove the above allocation which is reused here: this is used
+      // in handle_rrcReconfigurationComplete() to know that we need to send a
+      // Initial context setup response message
+      trigger_bearer_setup(rrc, UE, UE->n_initial_pdu, UE->initial_pdus, 0);
+    } else {
+      /* no PDU sesion to setup: acknowledge this message, and forward NAS
+       * message, if required */
+      rrc_gNB_send_NGAP_INITIAL_CONTEXT_SETUP_RESP(UE);
+      rrc_forward_ue_nas_message(rrc, UE);
+    }
+  }
+
 #ifdef E2_AGENT
   signal_rrc_state_changed_to(UE, RC_SM_RRC_CONNECTED);
 #endif
@@ -498,16 +517,13 @@ int rrc_gNB_process_NGAP_INITIAL_CONTEXT_SETUP_REQ(MessageDef *msg_p, instance_t
   return 0;
 }
 
-//------------------------------------------------------------------------------
-void rrc_gNB_send_NGAP_INITIAL_CONTEXT_SETUP_RESP(const protocol_ctxt_t *const ctxt_pP, rrc_gNB_ue_context_t *const ue_context_pP)
-//------------------------------------------------------------------------------
+void rrc_gNB_send_NGAP_INITIAL_CONTEXT_SETUP_RESP(gNB_RRC_UE_t *UE)
 {
   MessageDef *msg_p = NULL;
   int pdu_sessions_done = 0;
   int pdu_sessions_failed = 0;
   msg_p = itti_alloc_new_message (TASK_RRC_ENB, 0, NGAP_INITIAL_CONTEXT_SETUP_RESP);
   ngap_initial_context_setup_resp_t *resp = &NGAP_INITIAL_CONTEXT_SETUP_RESP(msg_p);
-  gNB_RRC_UE_t *UE = &ue_context_pP->ue_context;
 
   resp->gNB_ue_ngap_id = UE->rrc_ue_id;
 
@@ -538,14 +554,11 @@ void rrc_gNB_send_NGAP_INITIAL_CONTEXT_SETUP_RESP(const protocol_ctxt_t *const c
 
   resp->nb_of_pdusessions = pdu_sessions_done;
   resp->nb_of_pdusessions_failed = pdu_sessions_failed;
-  itti_send_msg_to_task (TASK_NGAP, ctxt_pP->instance, msg_p);
+  itti_send_msg_to_task (TASK_NGAP, 0, msg_p);
 }
 
-static NR_CipheringAlgorithm_t rrc_gNB_select_ciphering(
-    const protocol_ctxt_t *const ctxt_pP,
-    uint16_t algorithms)
+static NR_CipheringAlgorithm_t rrc_gNB_select_ciphering(const gNB_RRC_INST *rrc, uint16_t algorithms)
 {
-  gNB_RRC_INST *rrc = RC.nrrrc[ctxt_pP->module_id];
   int i;
   /* preset nea0 as fallback */
   int ret = 0;
@@ -577,11 +590,8 @@ static NR_CipheringAlgorithm_t rrc_gNB_select_ciphering(
   return ret;
 }
 
-static e_NR_IntegrityProtAlgorithm rrc_gNB_select_integrity(
-    const protocol_ctxt_t *const ctxt_pP,
-    uint16_t algorithms)
+static e_NR_IntegrityProtAlgorithm rrc_gNB_select_integrity(const gNB_RRC_INST *rrc, uint16_t algorithms)
 {
-  gNB_RRC_INST *rrc = RC.nrrrc[ctxt_pP->module_id];
   int i;
   /* preset nia0 as fallback */
   int ret = 0;
@@ -613,58 +623,52 @@ static e_NR_IntegrityProtAlgorithm rrc_gNB_select_integrity(
   return ret;
 }
 
-static int rrc_gNB_process_security(const protocol_ctxt_t *const ctxt_pP, rrc_gNB_ue_context_t *const ue_context_pP, ngap_security_capabilities_t *security_capabilities_pP)
+/*
+ * \brief check if security algorithms for this UE changed.
+ * \param rrc     pointer to RRC context
+ * \param UE      UE context
+ * \param cap     security capabilities for this UE
+ */
+static bool check_UE_security_algos_changed(const gNB_RRC_INST *rrc, const gNB_RRC_UE_t *UE, const ngap_security_capabilities_t *cap)
 {
-  bool                                                  changed = false;
-  NR_CipheringAlgorithm_t                               cipheringAlgorithm;
-  e_NR_IntegrityProtAlgorithm                           integrityProtAlgorithm;
-  gNB_RRC_UE_t *UE = &ue_context_pP->ue_context;
+  NR_CipheringAlgorithm_t cipheringAlgorithm = rrc_gNB_select_ciphering(rrc, cap->nRencryption_algorithms);
+  e_NR_IntegrityProtAlgorithm integrityProtAlgorithm = rrc_gNB_select_integrity(rrc, cap->nRintegrity_algorithms);
+  return UE->ciphering_algorithm != cipheringAlgorithm || UE->integrity_algorithm != integrityProtAlgorithm;
+}
 
+
+/*
+ * \brief set security algorithms
+ * \param rrc     pointer to RRC context
+ * \param UE      UE context
+ * \param cap     security capabilities for this UE
+ */
+static void set_UE_security_algos(const gNB_RRC_INST *rrc, gNB_RRC_UE_t *UE, const ngap_security_capabilities_t *cap)
+{
   /* Save security parameters */
-  UE->security_capabilities = *security_capabilities_pP;
-  // translation
-  LOG_D(NR_RRC,
-        "[gNB %d] NAS security_capabilities.encryption_algorithms %u AS ciphering_algorithm %lu NAS security_capabilities.integrity_algorithms %u AS integrity_algorithm %u\n",
-        ctxt_pP->module_id,
-        UE->security_capabilities.nRencryption_algorithms,
-        (unsigned long)UE->ciphering_algorithm,
-        UE->security_capabilities.nRintegrity_algorithms,
-        UE->integrity_algorithm);
+  UE->security_capabilities = *cap;
+
   /* Select relevant algorithms */
-  cipheringAlgorithm = rrc_gNB_select_ciphering(ctxt_pP, UE->security_capabilities.nRencryption_algorithms);
+  NR_CipheringAlgorithm_t cipheringAlgorithm = rrc_gNB_select_ciphering(rrc, cap->nRencryption_algorithms);
+  e_NR_IntegrityProtAlgorithm integrityProtAlgorithm = rrc_gNB_select_integrity(rrc, cap->nRintegrity_algorithms);
 
-  if (UE->ciphering_algorithm != cipheringAlgorithm) {
-    UE->ciphering_algorithm = cipheringAlgorithm;
-    changed = true;
-  }
-
-  integrityProtAlgorithm = rrc_gNB_select_integrity(ctxt_pP, UE->security_capabilities.nRintegrity_algorithms);
-
-  if (UE->integrity_algorithm != integrityProtAlgorithm) {
-    UE->integrity_algorithm = integrityProtAlgorithm;
-    changed = true;
-  }
+  UE->ciphering_algorithm = cipheringAlgorithm;
+  UE->integrity_algorithm = integrityProtAlgorithm;
 
   LOG_I(NR_RRC,
-        "[gNB %d][UE %d] Selected security algorithms (%p): ciphering %lx, integrity %x (algorithms %s)\n",
-        ctxt_pP->module_id,
+        "[UE %d] Selected security algorithms: ciphering %lx, integrity %x\n",
         UE->rrc_ue_id,
-        security_capabilities_pP,
         cipheringAlgorithm,
-        integrityProtAlgorithm,
-        changed ? "changed" : "are the same");
-  return changed;
+        integrityProtAlgorithm);
 }
 
 //------------------------------------------------------------------------------
 int rrc_gNB_process_NGAP_DOWNLINK_NAS(MessageDef *msg_p, instance_t instance, mui_t *rrc_gNB_mui)
 //------------------------------------------------------------------------------
 {
-  uint32_t length;
-  uint8_t buffer[4096];
-  protocol_ctxt_t ctxt = {0};
   ngap_downlink_nas_t *req = &NGAP_DOWNLINK_NAS(msg_p);
-  rrc_gNB_ue_context_t *ue_context_p = rrc_gNB_get_ue_context(RC.nrrrc[instance], req->gNB_ue_ngap_id);
+  gNB_RRC_INST *rrc = RC.nrrrc[instance];
+  rrc_gNB_ue_context_t *ue_context_p = rrc_gNB_get_ue_context(rrc, req->gNB_ue_ngap_id);
 
   if (ue_context_p == NULL) {
     /* Can not associate this message to an UE index, send a failure to NGAP and discard it! */
@@ -681,37 +685,15 @@ int rrc_gNB_process_NGAP_DOWNLINK_NAS(MessageDef *msg_p, instance_t instance, mu
   }
 
   gNB_RRC_UE_t *UE = &ue_context_p->ue_context;
-  PROTOCOL_CTXT_SET_BY_INSTANCE(&ctxt, instance, GNB_FLAG_YES, UE->rrc_ue_id, 0, 0);
-
-  /* Create message for PDCP (DLInformationTransfer_t) */
-  length = do_NR_DLInformationTransfer(buffer,
-                                       sizeof(buffer),
-                                       rrc_gNB_get_next_transaction_identifier(instance),
-                                       req->nas_pdu.length,
-                                       req->nas_pdu.buffer);
-  LOG_DUMPMSG(NR_RRC, DEBUG_RRC, buffer, length, "[MSG] RRC DL Information Transfer\n");
-  /*
-   * switch UL or DL NAS message without RRC piggybacked to SRB2 if active.
-   */
-  AssertFatal(!NODE_IS_DU(RC.nrrrc[ctxt.module_id]->node_type), "illegal node type DU: receiving NGAP messages at this node\n");
-  /* Transfer data to PDCP */
-  rb_id_t srb_id = UE->Srb[2].Active ? DCCH1 : DCCH;
-  nr_rrc_transfer_protected_rrc_message(RC.nrrrc[instance], UE, srb_id, buffer, length);
+  UE->nas_pdu = req->nas_pdu;
+  rrc_forward_ue_nas_message(rrc, UE);
   return 0;
 }
 
-//------------------------------------------------------------------------------
-void
-rrc_gNB_send_NGAP_UPLINK_NAS(
-  const protocol_ctxt_t    *const ctxt_pP,
-  rrc_gNB_ue_context_t     *const ue_context_pP,
-  NR_UL_DCCH_Message_t     *const ul_dcch_msg
-)
-//------------------------------------------------------------------------------
+void rrc_gNB_send_NGAP_UPLINK_NAS(gNB_RRC_UE_t *UE, const NR_UL_DCCH_Message_t *const ul_dcch_msg)
 {
     MessageDef *msg_p;
     NR_ULInformationTransfer_t *ulInformationTransfer = ul_dcch_msg->message.choice.c1->choice.ulInformationTransfer;
-    gNB_RRC_UE_t *UE = &ue_context_pP->ue_context;
 
     if (ulInformationTransfer->criticalExtensions.present == NR_ULInformationTransfer__criticalExtensions_PR_ulInformationTransfer) {
       NR_DedicatedNAS_Message_t *nas = ulInformationTransfer->criticalExtensions.choice.ulInformationTransfer->dedicatedNAS_Message;
@@ -722,22 +704,12 @@ rrc_gNB_send_NGAP_UPLINK_NAS(
         NGAP_UPLINK_NAS(msg_p).gNB_ue_ngap_id = UE->rrc_ue_id;
         NGAP_UPLINK_NAS (msg_p).nas_pdu.length = nas->size;
         NGAP_UPLINK_NAS (msg_p).nas_pdu.buffer = buf;
-        // extract_imsi(NGAP_UPLINK_NAS (msg_p).nas_pdu.buffer,
-        //               NGAP_UPLINK_NAS (msg_p).nas_pdu.length,
-        //               ue_context_pP);
-        itti_send_msg_to_task (TASK_NGAP, ctxt_pP->instance, msg_p);
+        itti_send_msg_to_task (TASK_NGAP, 0, msg_p);
         LOG_D(NR_RRC,"Send RRC GNB UL Information Transfer \n");
     }
 }
 
-//------------------------------------------------------------------------------
-void
-rrc_gNB_send_NGAP_PDUSESSION_SETUP_RESP(
-  const protocol_ctxt_t    *const ctxt_pP,
-  rrc_gNB_ue_context_t     *const ue_context_pP,
-  uint8_t                   xid
-)
-//------------------------------------------------------------------------------
+void rrc_gNB_send_NGAP_PDUSESSION_SETUP_RESP(gNB_RRC_UE_t *UE, uint8_t xid)
 {
   MessageDef *msg_p;
   int pdu_sessions_done = 0;
@@ -745,7 +717,6 @@ rrc_gNB_send_NGAP_PDUSESSION_SETUP_RESP(
 
   msg_p = itti_alloc_new_message (TASK_RRC_GNB, 0, NGAP_PDUSESSION_SETUP_RESP);
   ngap_pdusession_setup_resp_t *resp = &NGAP_PDUSESSION_SETUP_RESP(msg_p);
-  gNB_RRC_UE_t *UE = &ue_context_pP->ue_context;
   resp->gNB_ue_ngap_id = UE->rrc_ue_id;
 
   for (int pdusession = 0; pdusession < UE->nb_of_pdusessions; pdusession++) {
@@ -792,7 +763,7 @@ rrc_gNB_send_NGAP_PDUSESSION_SETUP_RESP(
 
   if ((pdu_sessions_done > 0 || pdu_sessions_failed)) {
     LOG_I(NR_RRC, "NGAP_PDUSESSION_SETUP_RESP: sending the message\n");
-    itti_send_msg_to_task (TASK_NGAP, ctxt_pP->instance, msg_p);
+    itti_send_msg_to_task (TASK_NGAP, 0, msg_p);
   }
 
   for(int i = 0; i < NB_RB_MAX; i++) {
@@ -806,13 +777,11 @@ rrc_gNB_send_NGAP_PDUSESSION_SETUP_RESP(
 void rrc_gNB_process_NGAP_PDUSESSION_SETUP_REQ(MessageDef *msg_p, instance_t instance)
 //------------------------------------------------------------------------------
 {
-  protocol_ctxt_t                 ctxt={0};
 
   ngap_pdusession_setup_req_t* msg=&NGAP_PDUSESSION_SETUP_REQ(msg_p);
   rrc_gNB_ue_context_t *ue_context_p = rrc_gNB_get_ue_context(RC.nrrrc[instance], msg->gNB_ue_ngap_id);
   gNB_RRC_UE_t *UE = &ue_context_p->ue_context;
-  PROTOCOL_CTXT_SET_BY_MODULE_ID(&ctxt, 0, GNB_FLAG_YES, UE->rnti, 0, 0, 0);
-  gNB_RRC_INST *rrc = RC.nrrrc[ctxt.module_id];
+  gNB_RRC_INST *rrc = RC.nrrrc[instance];
 
   if (ue_context_p == NULL) {
     MessageDef *msg_fail_p = NULL;
@@ -946,7 +915,6 @@ int rrc_gNB_process_NGAP_PDUSESSION_MODIFY_REQ(MessageDef *msg_p, instance_t ins
 {
   rrc_gNB_ue_context_t *ue_context_p = NULL;
 
-  protocol_ctxt_t ctxt;
   ngap_pdusession_modify_req_t *req = &NGAP_PDUSESSION_MODIFY_REQ(msg_p);
 
   ue_context_p = rrc_gNB_get_ue_context(RC.nrrrc[instance], req->gNB_ue_ngap_id);
@@ -956,8 +924,6 @@ int rrc_gNB_process_NGAP_PDUSESSION_MODIFY_REQ(MessageDef *msg_p, instance_t ins
     return (-1);
   }
   gNB_RRC_UE_t *UE = &ue_context_p->ue_context;
-  PROTOCOL_CTXT_SET_BY_INSTANCE(&ctxt, instance, GNB_FLAG_YES, UE->rrc_ue_id, 0, 0);
-  ctxt.eNB_index = 0;
   bool all_failed = true;
   for (int i = 0; i < req->nb_pdusessions_tomodify; i++) {
     rrc_pdu_session_param_t *sess;
@@ -992,8 +958,8 @@ int rrc_gNB_process_NGAP_PDUSESSION_MODIFY_REQ(MessageDef *msg_p, instance_t ins
   }
 
   if (!all_failed) {
-    LOG_D(NR_RRC, "generate RRCReconfiguration \n");
-    rrc_gNB_modify_dedicatedRRCReconfiguration(&ctxt, ue_context_p);
+    gNB_RRC_INST *rrc = RC.nrrrc[instance];
+    rrc_gNB_modify_dedicatedRRCReconfiguration(rrc, UE);
   } else {
     LOG_I(NR_RRC,
           "pdu session modify failed, fill NGAP_PDUSESSION_MODIFY_RESP with the pdu session information that failed to modify \n");
@@ -1018,19 +984,11 @@ int rrc_gNB_process_NGAP_PDUSESSION_MODIFY_REQ(MessageDef *msg_p, instance_t ins
   return (0);
 }
 
-//------------------------------------------------------------------------------
-int
-rrc_gNB_send_NGAP_PDUSESSION_MODIFY_RESP(
-  const protocol_ctxt_t    *const ctxt_pP,
-  rrc_gNB_ue_context_t     *const ue_context_pP,
-  uint8_t                   xid
-)
-//------------------------------------------------------------------------------
+int rrc_gNB_send_NGAP_PDUSESSION_MODIFY_RESP(gNB_RRC_UE_t *UE, uint8_t xid)
 {
   MessageDef *msg_p = NULL;
   uint8_t pdu_sessions_failed = 0;
   uint8_t pdu_sessions_done = 0;
-  gNB_RRC_UE_t *UE = &ue_context_pP->ue_context;
 
   msg_p = itti_alloc_new_message (TASK_RRC_GNB, 0, NGAP_PDUSESSION_MODIFY_RESP);
   if (msg_p == NULL) {
@@ -1099,7 +1057,7 @@ rrc_gNB_send_NGAP_PDUSESSION_MODIFY_RESP(
 
   if (pdu_sessions_done > 0 || pdu_sessions_failed > 0) {
     LOG_D(NR_RRC, "NGAP_PDUSESSION_MODIFY_RESP: sending the message (total pdu session %d)\n", UE->nb_of_pdusessions);
-    itti_send_msg_to_task (TASK_NGAP, ctxt_pP->instance, msg_p);
+    itti_send_msg_to_task (TASK_NGAP, 0, msg_p);
   } else {
     itti_free (ITTI_MSG_ORIGIN_ID(msg_p), msg_p);
   }
@@ -1166,7 +1124,6 @@ int rrc_gNB_process_NGAP_UE_CONTEXT_RELEASE_COMMAND(MessageDef *msg_p, instance_
 {
   gNB_RRC_INST *rrc = RC.nrrrc[0];
   uint32_t gNB_ue_ngap_id = 0;
-  protocol_ctxt_t ctxt;
   gNB_ue_ngap_id = NGAP_UE_CONTEXT_RELEASE_COMMAND(msg_p).gNB_ue_ngap_id;
   rrc_gNB_ue_context_t *ue_context_p = rrc_gNB_get_ue_context(RC.nrrrc[instance], gNB_ue_ngap_id);
 
@@ -1199,9 +1156,7 @@ int rrc_gNB_process_NGAP_UE_CONTEXT_RELEASE_COMMAND(MessageDef *msg_p, instance_
   /* special case: the DU might be offline, in which case the f1_ue_data exists
    * but is set to 0 */
   if (cu_exists_f1_ue_data(UE->rrc_ue_id) && cu_get_f1_ue_data(UE->rrc_ue_id).du_assoc_id != 0) {
-    PROTOCOL_CTXT_SET_BY_INSTANCE(&ctxt, instance, GNB_FLAG_YES, UE->rrc_ue_id, 0, 0);
-    ctxt.eNB_index = 0;
-    rrc_gNB_generate_RRCRelease(&ctxt, ue_context_p);
+    rrc_gNB_generate_RRCRelease(rrc, UE);
 
     /* UE will be freed after UE context release complete */
   } else {
@@ -1226,19 +1181,16 @@ void rrc_gNB_send_NGAP_UE_CONTEXT_RELEASE_COMPLETE(instance_t instance,
   itti_send_msg_to_task(TASK_NGAP, instance, msg);
 }
 
-void rrc_gNB_send_NGAP_UE_CAPABILITIES_IND(const protocol_ctxt_t *const ctxt_pP,
-                                           rrc_gNB_ue_context_t *const ue_context_pP,
-                                           const NR_UECapabilityInformation_t *const ue_cap_info)
+void rrc_gNB_send_NGAP_UE_CAPABILITIES_IND(gNB_RRC_UE_t *UE, const NR_UECapabilityInformation_t *const ue_cap_info)
 //------------------------------------------------------------------------------
 {
   NR_UE_CapabilityRAT_ContainerList_t *ueCapabilityRATContainerList =
       ue_cap_info->criticalExtensions.choice.ueCapabilityInformation->ue_CapabilityRAT_ContainerList;
   void *buf;
   NR_UERadioAccessCapabilityInformation_t rac = {0};
-  gNB_RRC_UE_t *UE = &ue_context_pP->ue_context;
 
   if (ueCapabilityRATContainerList->list.count == 0) {
-    LOG_W(RRC, "[gNB %d][UE %x] bad UE capabilities\n", ctxt_pP->module_id, UE->rnti);
+    LOG_W(RRC, "[UE %d] bad UE capabilities\n", UE->rrc_ue_id);
     }
 
     int ret = uper_encode_to_new_buffer(&asn_DEF_NR_UE_CapabilityRAT_ContainerList, NULL, ueCapabilityRATContainerList, &buf);
@@ -1265,22 +1217,14 @@ void rrc_gNB_send_NGAP_UE_CAPABILITIES_IND(const protocol_ctxt_t *const ctxt_pP,
     ind->gNB_ue_ngap_id = UE->rrc_ue_id;
     ind->ue_radio_cap.length = encoded;
     ind->ue_radio_cap.buffer = buf2;
-    itti_send_msg_to_task (TASK_NGAP, ctxt_pP->instance, msg_p);
+    itti_send_msg_to_task (TASK_NGAP, 0, msg_p);
     LOG_I(NR_RRC,"Send message to ngap: NGAP_UE_CAPABILITIES_IND\n");
 }
 
-//------------------------------------------------------------------------------
-void
-rrc_gNB_send_NGAP_PDUSESSION_RELEASE_RESPONSE(
-  const protocol_ctxt_t    *const ctxt_pP,
-  rrc_gNB_ue_context_t     *const ue_context_pP,
-  uint8_t                   xid
-)
-//------------------------------------------------------------------------------
+void rrc_gNB_send_NGAP_PDUSESSION_RELEASE_RESPONSE(gNB_RRC_UE_t *UE, uint8_t xid)
 {
   int pdu_sessions_released = 0;
   MessageDef   *msg_p;
-  gNB_RRC_UE_t *UE = &ue_context_pP->ue_context;
   msg_p = itti_alloc_new_message (TASK_RRC_GNB, 0, NGAP_PDUSESSION_RELEASE_RESPONSE);
   ngap_pdusession_release_resp_t *resp = &NGAP_PDUSESSION_RELEASE_RESPONSE(msg_p);
   memset(resp, 0, sizeof(*resp));
@@ -1300,15 +1244,15 @@ rrc_gNB_send_NGAP_PDUSESSION_RELEASE_RESPONSE(
   resp->nb_of_pdusessions_released = pdu_sessions_released;
   resp->nb_of_pdusessions_failed = 0;
   LOG_I(NR_RRC, "NGAP PDUSESSION RELEASE RESPONSE: rrc_ue_id %u release_pdu_sessions %d\n", resp->gNB_ue_ngap_id, pdu_sessions_released);
-  itti_send_msg_to_task (TASK_NGAP, ctxt_pP->instance, msg_p);
+  itti_send_msg_to_task (TASK_NGAP, 0, msg_p);
 }
 
 //------------------------------------------------------------------------------
 int rrc_gNB_process_NGAP_PDUSESSION_RELEASE_COMMAND(MessageDef *msg_p, instance_t instance)
 //------------------------------------------------------------------------------
 {
+  gNB_RRC_INST *rrc = RC.nrrrc[instance];
   uint32_t gNB_ue_ngap_id;
-  protocol_ctxt_t ctxt;
   ngap_pdusession_release_command_t *cmd = &NGAP_PDUSESSION_RELEASE_COMMAND(msg_p);
   gNB_ue_ngap_id = cmd->gNB_ue_ngap_id;
   if (cmd->nb_pdusessions_torelease > NGAP_MAX_PDUSESSION) {
@@ -1324,11 +1268,10 @@ int rrc_gNB_process_NGAP_PDUSESSION_RELEASE_COMMAND(MessageDef *msg_p, instance_
 
   LOG_I(NR_RRC, "[gNB %ld] gNB_ue_ngap_id %u \n", instance, gNB_ue_ngap_id);
   gNB_RRC_UE_t *UE = &ue_context_p->ue_context;
-  PROTOCOL_CTXT_SET_BY_INSTANCE(&ctxt, instance, GNB_FLAG_YES, UE->rrc_ue_id, 0, 0);
   LOG_I(
       NR_RRC, "PDU Session Release Command: AMF_UE_NGAP_ID %lu  rrc_ue_id %u release_pdusessions %d \n", cmd->amf_ue_ngap_id, gNB_ue_ngap_id, cmd->nb_pdusessions_torelease);
   bool found = false;
-  uint8_t xid = rrc_gNB_get_next_transaction_identifier(ctxt.module_id);
+  uint8_t xid = rrc_gNB_get_next_transaction_identifier(0);
   UE->xids[xid] = RRC_PDUSESSION_RELEASE;
   for (int pdusession = 0; pdusession < cmd->nb_pdusessions_torelease; pdusession++) {
     rrc_pdu_session_param_t *pduSession = find_pduSession(UE, cmd->pdusession_release_params[pdusession].pdusession_id, false);
@@ -1356,7 +1299,7 @@ int rrc_gNB_process_NGAP_PDUSESSION_RELEASE_COMMAND(MessageDef *msg_p, instance_
   if (found) {
     // TODO RRCReconfiguration To UE
     LOG_I(NR_RRC, "Send RRCReconfiguration To UE \n");
-    rrc_gNB_generate_dedicatedRRCReconfiguration_release(&ctxt, ue_context_p, xid, cmd->nas_pdu.length, cmd->nas_pdu.buffer);
+    rrc_gNB_generate_dedicatedRRCReconfiguration_release(rrc, UE, xid, cmd->nas_pdu.length, cmd->nas_pdu.buffer);
   } else {
     // gtp tunnel delete
     LOG_I(NR_RRC, "gtp tunnel delete all tunnels for UE %04x\n", UE->rnti);
@@ -1364,7 +1307,7 @@ int rrc_gNB_process_NGAP_PDUSESSION_RELEASE_COMMAND(MessageDef *msg_p, instance_
     req.ue_id = UE->rnti;
     gtpv1u_delete_ngu_tunnel(instance, &req);
     // NGAP_PDUSESSION_RELEASE_RESPONSE
-    rrc_gNB_send_NGAP_PDUSESSION_RELEASE_RESPONSE(&ctxt, ue_context_p, xid);
+    rrc_gNB_send_NGAP_PDUSESSION_RELEASE_RESPONSE(UE, xid);
     LOG_I(NR_RRC, "Send PDU Session Release Response \n");
   }
   return 0;
