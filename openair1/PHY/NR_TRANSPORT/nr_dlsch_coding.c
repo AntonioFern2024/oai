@@ -70,8 +70,12 @@ void free_gNB_dlsch(NR_gNB_DLSCH_t *dlsch, uint16_t N_RB, const NR_DL_FRAME_PARM
   for (int r = 0; r < a_segments; r++) {
     free(harq->c[r]);
     harq->c[r] = NULL;
+
+    free(harq->d[r]);
+    harq->d[r] = NULL;
   }
   free(harq->c);
+  free(harq->d);
   free(harq->pdu);
 }
 
@@ -100,6 +104,7 @@ NR_gNB_DLSCH_t new_gNB_dlsch(NR_DL_FRAME_PARMS *frame_parms, uint16_t N_RB)
   bzero(harq->b, dlsch_bytes);
 
   harq->c = (uint8_t **)malloc16(a_segments*sizeof(uint8_t *));
+  harq->d = (uint8_t **)malloc16(a_segments*sizeof(uint8_t *));
   for (int r = 0; r < a_segments; r++) {
     // account for filler in first segment and CRCs for multiple segment case
     // [hna] 8448 is the maximum CB size in NR
@@ -108,6 +113,10 @@ NR_gNB_DLSCH_t new_gNB_dlsch(NR_DL_FRAME_PARMS *frame_parms, uint16_t N_RB)
     harq->c[r] = malloc16(8448);
     AssertFatal(harq->c[r], "cannot allocate harq->c[%d]\n", r);
     bzero(harq->c[r], 8448);
+
+    harq->d[r] = malloc16(68*384); //max size for coded output
+    AssertFatal(harq->d[r], "cannot allocate harq->d[%d]\n", r);
+    bzero(harq->d[r], 68*384);
   }
 
   harq->f = malloc16(N_RB * NR_SYMBOLS_PER_SLOT * NR_NB_SC_PER_RB * 8 * NR_MAX_NB_LAYERS);
