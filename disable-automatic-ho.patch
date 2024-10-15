@@ -1,0 +1,13 @@
+diff --git a/openair2/RRC/NR/rrc_gNB.c b/openair2/RRC/NR/rrc_gNB.c
+index 4a8bf2c7e4..ffc0d783bf 100644
+--- a/openair2/RRC/NR/rrc_gNB.c
++++ b/openair2/RRC/NR/rrc_gNB.c
+@@ -1348,7 +1348,7 @@ static void process_Event_Based_Measurement_Report(gNB_RRC_UE_t *ue, NR_ReportCo
+           nr_rrc_du_container_t *source_du = get_du_by_cell_id(rrc, serving_cell->nr_cellid);
+           DevAssert(source_du);
+           nr_rrc_du_container_t *target_du = get_du_by_cell_id(rrc, neigh_cell->nr_cellid);
+-          nr_rrc_trigger_f1_ho(rrc, ue, source_du, target_du);
++          //nr_rrc_trigger_f1_ho(rrc, ue, source_du, target_du);
+         } else {
+           LOG_W(NR_RRC, "UE %d: received A3 event for stronger neighbor PCI %d, but no such neighbour in configuration\n", ue->rrc_ue_id, neighbourCellId);
+         }
